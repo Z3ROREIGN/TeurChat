@@ -91,11 +91,19 @@ create policy "Users delete own comments" on public.comments for delete to authe
 
 -- Função SECURITY DEFINER evita recursão de RLS ao verificar membros da conversa.
 create or replace function public.is_conversation_member(target_conversation uuid, target_user uuid default auth.uid())
-returns boolean language sql stable security definer set search_path = public
-as $ select exists (
-  select 1 from public.conversation_members cm
-  where cm.conversation_id = target_conversation and cm.user_id = target_user
-); $;
+returns boolean language plpgsql stable security definer set search_path = ''
+as $
+begin
+  -- Never allow callers to test membership on behalf of another user.
+  if target_user is distinct from auth.uid() then
+    return false;
+  end if;
+  return exists (
+    select 1 from public.conversation_members cm
+    where cm.conversation_id = target_conversation and cm.user_id = auth.uid()
+  );
+end;
+$;
 revoke all on function public.is_conversation_member(uuid, uuid) from public;
 grant execute on function public.is_conversation_member(uuid, uuid) to authenticated;
 
