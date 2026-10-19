@@ -1,7 +1,6 @@
 // Configuração pública do Supabase para o TeurChat.
-// Preencha com Project URL e Publishable key (ou chave pública anon) do projeto TeurChat.
-// Estas duas informações são próprias para uso no navegador. NUNCA use service_role/secret key.
+// Publishable key é segura para o navegador; nunca coloque service_role/secret aqui.
 window.TEURCHAT_CONFIG = {
-  supabaseUrl: "",
-  supabaseAnonKey: ""
+  supabaseUrl: "https://kkceusphyzlfsadkrbeg.supabase.co",
+  supabaseAnonKey: "sb_publishable_AX5uGAvU11mxgunRa54Y5w_Ksw49Q1d"
 };
