@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "TeurChat",
+  "short_name": "TeurChat",
+  "description": "Comunidade social de publicações e conversas.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23050505'/%3E%3Ctext x='256' y='355' font-size='350' text-anchor='middle' font-family='Arial' font-weight='bold' fill='white'%3ET%3C/text%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
