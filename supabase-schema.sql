@@ -202,3 +202,25 @@ grant select, insert on public.conversation_members to authenticated;
 grant select, insert on public.messages to authenticated;
 
 -- Realtime pode ser ativado no Dashboard para posts e messages se ainda não estiver.
+
+
+-- Relações de seguir para a aba "Seguindo".
+create table if not exists public.follows (
+  follower_id uuid not null references public.profiles(id) on delete cascade,
+  followed_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (follower_id, followed_id),
+  constraint follows_no_self check (follower_id <> followed_id)
+);
+create index if not exists follows_followed_id_idx on public.follows(followed_id);
+alter table public.follows enable row level security;
+drop policy if exists "Users can read their own follows" on public.follows;
+create policy "Users can read their own follows" on public.follows
+  for select to authenticated using (auth.uid() = follower_id);
+drop policy if exists "Users follow as themselves" on public.follows;
+create policy "Users follow as themselves" on public.follows
+  for insert to authenticated with check (auth.uid() = follower_id);
+drop policy if exists "Users unfollow as themselves" on public.follows;
+create policy "Users unfollow as themselves" on public.follows
+  for delete to authenticated using (auth.uid() = follower_id);
+grant select, insert, delete on public.follows to authenticated;
