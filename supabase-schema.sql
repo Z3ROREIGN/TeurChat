@@ -375,3 +375,25 @@ begin
   end if;
 end;
 $$;
+
+
+-- Hardening: keep the RLS membership helper outside the exposed public API schema.
+create or replace function private.is_conversation_member(target_conversation uuid, target_user uuid default auth.uid())
+returns boolean language plpgsql stable security definer set search_path = ''
+as $$
+begin
+  if target_user is distinct from auth.uid() then return false; end if;
+  return exists (select 1 from public.conversation_members cm where cm.conversation_id=target_conversation and cm.user_id=auth.uid());
+end;
+$$;
+revoke all on function private.is_conversation_member(uuid, uuid) from public, anon;
+grant execute on function private.is_conversation_member(uuid, uuid) to authenticated;
+drop policy if exists "Members can read their conversations" on public.conversations;
+create policy "Members can read their conversations" on public.conversations for select to authenticated using (private.is_conversation_member(id, (select auth.uid())));
+drop policy if exists "Members list conversation members" on public.conversation_members;
+create policy "Members list conversation members" on public.conversation_members for select to authenticated using (private.is_conversation_member(conversation_id, (select auth.uid())));
+drop policy if exists "Members read messages" on public.messages;
+create policy "Members read messages" on public.messages for select to authenticated using (private.is_conversation_member(conversation_id, (select auth.uid())));
+drop policy if exists "Members send messages as themselves" on public.messages;
+create policy "Members send messages as themselves" on public.messages for insert to authenticated with check ((select auth.uid())=sender_id and private.is_conversation_member(conversation_id, (select auth.uid())));
+revoke all on function public.is_conversation_member(uuid, uuid) from public, anon, authenticated;
