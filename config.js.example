@@ -1,0 +1,6 @@
+// Copie para config.js e preencha com os dados públicos do SEU projeto Supabase.
+// Nunca coloque service_role/secret keys no navegador ou no GitHub.
+window.TEURCHAT_CONFIG = {
+  supabaseUrl: "",
+  supabaseAnonKey: ""
+};
