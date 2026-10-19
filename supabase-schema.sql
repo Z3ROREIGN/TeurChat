@@ -414,3 +414,24 @@ alter policy "Users delete own comments" on public.comments using ((select auth.
 alter policy "Users can read their own follows" on public.follows using ((select auth.uid()) = follower_id);
 alter policy "Users follow as themselves" on public.follows with check ((select auth.uid()) = follower_id);
 alter policy "Users unfollow as themselves" on public.follows using ((select auth.uid()) = follower_id);
+
+
+-- User reports for content moderation intake. Admin review should be done through a trusted server/admin role.
+create table if not exists public.reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid not null references public.profiles(id) on delete cascade,
+  post_id uuid references public.posts(id) on delete set null,
+  reported_user_id uuid references public.profiles(id) on delete set null,
+  reason text not null check (reason in ('spam','harassment','nudity','violence','scam','other')),
+  details text not null default '' check (char_length(details) <= 1000),
+  status text not null default 'pending' check (status in ('pending','reviewing','resolved','dismissed')),
+  created_at timestamptz not null default now()
+);
+create index if not exists reports_status_created_idx on public.reports(status, created_at desc);
+create index if not exists reports_reporter_created_idx on public.reports(reporter_id, created_at desc);
+alter table public.reports enable row level security;
+drop policy if exists "Users submit reports as themselves" on public.reports;
+create policy "Users submit reports as themselves" on public.reports for insert to authenticated with check ((select auth.uid()) = reporter_id);
+drop policy if exists "Users read their own reports" on public.reports;
+create policy "Users read their own reports" on public.reports for select to authenticated using ((select auth.uid()) = reporter_id);
+grant select, insert on public.reports to authenticated;
