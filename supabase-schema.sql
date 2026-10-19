@@ -89,27 +89,37 @@ create policy "Authenticated users comment as themselves" on public.comments for
 drop policy if exists "Users delete own comments" on public.comments;
 create policy "Users delete own comments" on public.comments for delete to authenticated using (auth.uid() = user_id);
 
+-- Função SECURITY DEFINER evita recursão de RLS ao verificar membros da conversa.
+create or replace function public.is_conversation_member(target_conversation uuid, target_user uuid default auth.uid())
+returns boolean language sql stable security definer set search_path = public
+as $ select exists (
+  select 1 from public.conversation_members cm
+  where cm.conversation_id = target_conversation and cm.user_id = target_user
+); $;
+revoke all on function public.is_conversation_member(uuid, uuid) from public;
+grant execute on function public.is_conversation_member(uuid, uuid) to authenticated;
+
 drop policy if exists "Members can read their conversations" on public.conversations;
 create policy "Members can read their conversations" on public.conversations for select to authenticated using (
-  exists(select 1 from public.conversation_members cm where cm.conversation_id=id and cm.user_id=auth.uid())
+  public.is_conversation_member(id, auth.uid())
 );
 drop policy if exists "Authenticated users can start conversations" on public.conversations;
 create policy "Authenticated users can start conversations" on public.conversations for insert to authenticated with check (true);
 
 drop policy if exists "Members list conversation members" on public.conversation_members;
 create policy "Members list conversation members" on public.conversation_members for select to authenticated using (
-  exists(select 1 from public.conversation_members cm where cm.conversation_id=conversation_id and cm.user_id=auth.uid())
+  public.is_conversation_member(conversation_id, auth.uid())
 );
 drop policy if exists "Users join themselves to conversations" on public.conversation_members;
 create policy "Users join themselves to conversations" on public.conversation_members for insert to authenticated with check (auth.uid()=user_id);
 
 drop policy if exists "Members read messages" on public.messages;
 create policy "Members read messages" on public.messages for select to authenticated using (
-  exists(select 1 from public.conversation_members cm where cm.conversation_id=messages.conversation_id and cm.user_id=auth.uid())
+  public.is_conversation_member(conversation_id, auth.uid())
 );
 drop policy if exists "Members send messages as themselves" on public.messages;
 create policy "Members send messages as themselves" on public.messages for insert to authenticated with check (
-  auth.uid()=sender_id and exists(select 1 from public.conversation_members cm where cm.conversation_id=messages.conversation_id and cm.user_id=auth.uid())
+  auth.uid()=sender_id and public.is_conversation_member(conversation_id, auth.uid())
 );
 
 -- Para atualizações em tempo real, habilite public.messages no publication supabase_realtime
