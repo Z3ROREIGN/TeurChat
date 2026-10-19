@@ -224,3 +224,51 @@ drop policy if exists "Users unfollow as themselves" on public.follows;
 create policy "Users unfollow as themselves" on public.follows
   for delete to authenticated using (auth.uid() = follower_id);
 grant select, insert, delete on public.follows to authenticated;
+
+-- Cria o perfil no cadastro, inclusive quando a confirmação de e-mail está ativada.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  requested_username text;
+  base_username text;
+  safe_display_name text;
+begin
+  requested_username := lower(regexp_replace(coalesce(new.raw_user_meta_data->>'username',''), '[^a-z0-9_]', '', 'g'));
+  base_username := lower(regexp_replace(split_part(coalesce(new.email, 'usuario'), '@', 1), '[^a-z0-9_]', '', 'g'));
+  if char_length(base_username) < 3 then
+    base_username := 'user_' || left(new.id::text, 8);
+  end if;
+  safe_display_name := left(coalesce(nullif(trim(new.raw_user_meta_data->>'display_name'), ''), base_username), 40);
+
+  if char_length(requested_username) between 3 and 24 then
+    begin
+      insert into public.profiles(id, username, display_name)
+      values(new.id, requested_username, safe_display_name)
+      on conflict (id) do nothing;
+      return new;
+    exception when unique_violation then
+      -- Nome ocupado: usar um identificador único derivado do UUID.
+      null;
+    end;
+  end if;
+
+  insert into public.profiles(id, username, display_name)
+  values(new.id, left(base_username, 17) || '_' || left(replace(new.id::text, '-', ''), 6), safe_display_name)
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- Conversas e participantes devem ser criados somente pelo RPC validado.
+drop policy if exists "Authenticated users can start conversations" on public.conversations;
+drop policy if exists "Users join themselves to conversations" on public.conversation_members;
