@@ -124,3 +124,73 @@ create policy "Members send messages as themselves" on public.messages for inser
 
 -- Para atualizações em tempo real, habilite public.messages no publication supabase_realtime
 -- pelo painel Supabase caso ainda não esteja habilitado.
+
+-- TeurChat: operação segura para iniciar conversas entre dois usuários.
+-- Pode ser executada mais de uma vez.
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+grant usage on schema private to authenticated;
+
+create or replace function public.start_conversation(target_username text)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  target_user_id uuid;
+  existing_conversation uuid;
+  new_conversation uuid;
+begin
+  if current_user_id is null then
+    raise exception 'É necessário entrar na conta.';
+  end if;
+
+  select p.id into target_user_id
+  from public.profiles p
+  where lower(p.username) = lower(trim(leading '@' from target_username))
+  limit 1;
+
+  if target_user_id is null then
+    raise exception 'Não encontramos esse nome de usuário.';
+  end if;
+  if target_user_id = current_user_id then
+    raise exception 'Você não pode iniciar uma conversa consigo mesmo.';
+  end if;
+
+  select cm1.conversation_id into existing_conversation
+  from public.conversation_members cm1
+  join public.conversation_members cm2
+    on cm2.conversation_id = cm1.conversation_id
+  where cm1.user_id = current_user_id
+    and cm2.user_id = target_user_id
+    and (select count(*) from public.conversation_members cm3
+         where cm3.conversation_id = cm1.conversation_id) = 2
+  limit 1;
+
+  if existing_conversation is not null then
+    return existing_conversation;
+  end if;
+
+  insert into public.conversations default values returning id into new_conversation;
+  insert into public.conversation_members(conversation_id,user_id)
+  values (new_conversation,current_user_id),(new_conversation,target_user_id);
+  return new_conversation;
+end;
+$$;
+
+revoke all on function public.start_conversation(text) from public, anon;
+grant execute on function public.start_conversation(text) to authenticated;
+
+-- Garanta acesso via Data API junto com as políticas RLS existentes.
+grant select on public.profiles, public.posts, public.likes, public.comments to anon, authenticated;
+grant insert, update on public.profiles to authenticated;
+grant insert, update, delete on public.posts to authenticated;
+grant insert, delete on public.likes to authenticated;
+grant insert, delete on public.comments to authenticated;
+grant select, insert on public.conversations to authenticated;
+grant select, insert on public.conversation_members to authenticated;
+grant select, insert on public.messages to authenticated;
+
+-- Realtime pode ser ativado no Dashboard para posts e messages se ainda não estiver.
