@@ -272,3 +272,106 @@ create trigger on_auth_user_created
 -- Conversas e participantes devem ser criados somente pelo RPC validado.
 drop policy if exists "Authenticated users can start conversations" on public.conversations;
 drop policy if exists "Users join themselves to conversations" on public.conversation_members;
+
+
+-- Extra social features: media metadata, saved posts, notifications and storage.
+alter table public.posts add column if not exists media_type text;
+alter table public.posts add column if not exists edited_at timestamptz;
+alter table public.posts add column if not exists hashtags text[] not null default '{}';
+
+create table if not exists public.bookmarks (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  post_id uuid not null references public.posts(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, post_id)
+);
+create index if not exists bookmarks_post_id_idx on public.bookmarks(post_id);
+
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  recipient_id uuid not null references public.profiles(id) on delete cascade,
+  actor_id uuid references public.profiles(id) on delete set null,
+  post_id uuid references public.posts(id) on delete cascade,
+  kind text not null check (kind in ('like','comment','follow','message')),
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists notifications_recipient_created_idx on public.notifications(recipient_id, created_at desc);
+create index if not exists comments_user_id_idx on public.comments(user_id);
+create index if not exists conversation_members_user_id_idx on public.conversation_members(user_id);
+create index if not exists likes_post_id_idx on public.likes(post_id);
+create index if not exists messages_sender_id_idx on public.messages(sender_id);
+create index if not exists posts_user_id_created_idx on public.posts(user_id, created_at desc);
+
+alter table public.bookmarks enable row level security;
+alter table public.notifications enable row level security;
+drop policy if exists "Users read own bookmarks" on public.bookmarks;
+create policy "Users read own bookmarks" on public.bookmarks for select to authenticated using ((select auth.uid()) = user_id);
+drop policy if exists "Users create own bookmarks" on public.bookmarks;
+create policy "Users create own bookmarks" on public.bookmarks for insert to authenticated with check ((select auth.uid()) = user_id);
+drop policy if exists "Users remove own bookmarks" on public.bookmarks;
+create policy "Users remove own bookmarks" on public.bookmarks for delete to authenticated using ((select auth.uid()) = user_id);
+grant select, insert, delete on public.bookmarks to authenticated;
+drop policy if exists "Users read own notifications" on public.notifications;
+create policy "Users read own notifications" on public.notifications for select to authenticated using ((select auth.uid()) = recipient_id);
+drop policy if exists "Users mark own notifications read" on public.notifications;
+create policy "Users mark own notifications read" on public.notifications for update to authenticated using ((select auth.uid()) = recipient_id) with check ((select auth.uid()) = recipient_id);
+grant select, update on public.notifications to authenticated;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('teur-media', 'teur-media', true, 104857600, array['image/jpeg','image/png','image/webp','image/gif','image/avif','video/mp4','video/webm','video/quicktime'])
+on conflict (id) do update set public = excluded.public, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+drop policy if exists "Teur media public read" on storage.objects;
+create policy "Teur media public read" on storage.objects for select using (bucket_id = 'teur-media');
+drop policy if exists "Teur media upload own folder" on storage.objects;
+create policy "Teur media upload own folder" on storage.objects for insert to authenticated with check (bucket_id = 'teur-media' and (storage.foldername(name))[1] = (select auth.uid())::text);
+drop policy if exists "Teur media update own folder" on storage.objects;
+create policy "Teur media update own folder" on storage.objects for update to authenticated using (bucket_id = 'teur-media' and (storage.foldername(name))[1] = (select auth.uid())::text) with check (bucket_id = 'teur-media' and (storage.foldername(name))[1] = (select auth.uid())::text);
+drop policy if exists "Teur media delete own folder" on storage.objects;
+create policy "Teur media delete own folder" on storage.objects for delete to authenticated using (bucket_id = 'teur-media' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create or replace function public.notify_social_event()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+declare recipient uuid; actor uuid; post uuid; notification_kind text;
+begin
+  if tg_table_name = 'likes' then
+    actor := new.user_id; post := new.post_id; notification_kind := 'like';
+    select p.user_id into recipient from public.posts p where p.id = new.post_id;
+  elsif tg_table_name = 'comments' then
+    actor := new.user_id; post := new.post_id; notification_kind := 'comment';
+    select p.user_id into recipient from public.posts p where p.id = new.post_id;
+  elsif tg_table_name = 'follows' then
+    actor := new.follower_id; recipient := new.followed_id; notification_kind := 'follow';
+  elsif tg_table_name = 'messages' then
+    actor := new.sender_id; notification_kind := 'message';
+    insert into public.notifications(recipient_id, actor_id, kind)
+    select cm.user_id, actor, notification_kind from public.conversation_members cm
+    where cm.conversation_id = new.conversation_id and cm.user_id <> actor;
+    return new;
+  else return new;
+  end if;
+  if recipient is not null and recipient <> actor then
+    insert into public.notifications(recipient_id, actor_id, post_id, kind)
+    values (recipient, actor, post, notification_kind);
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.notify_social_event() from public, anon, authenticated;
+drop trigger if exists notify_on_like on public.likes;
+create trigger notify_on_like after insert on public.likes for each row execute function public.notify_social_event();
+drop trigger if exists notify_on_comment on public.comments;
+create trigger notify_on_comment after insert on public.comments for each row execute function public.notify_social_event();
+drop trigger if exists notify_on_follow on public.follows;
+create trigger notify_on_follow after insert on public.follows for each row execute function public.notify_social_event();
+drop trigger if exists notify_on_message on public.messages;
+create trigger notify_on_message after insert on public.messages for each row execute function public.notify_social_event();
+
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='notifications') then
+    alter publication supabase_realtime add table public.notifications;
+  end if;
+end;
+$$;
