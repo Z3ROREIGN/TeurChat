@@ -1,31 +1,42 @@
 # TeurChat
 
-Aplicativo social com identidade visual preta e branca, experiência mobile-first e instalação como PWA.
+Aplicativo social mobile-first com identidade visual preta e branca, PWA instalável, autenticação e dados conectados ao Supabase.
 
-## O que está nesta primeira base
+## Recursos implementados no cliente
 
-- Tela de instalação antes de entrar na experiência social; em navegador comum o feed fica bloqueado.
-- Manifest e service worker para instalação e cache básico.
-- Feed social com publicações, curtidas locais, busca e layout responsivo inspirado em apps de vídeos curtos.
-- Telas iniciais de perfil, autenticação visual e mensagens.
-- Interface em português, tema preto e branco.
+- Autenticação por e-mail e senha usando Supabase Auth.
+- Perfil público com nome de usuário, nome de exibição e bio.
+- Feed de publicações compartilhadas entre contas e dispositivos.
+- Curtidas e comentários armazenados no banco.
+- Busca nas publicações carregadas.
+- Mensagens diretas por nome de usuário e atualização em tempo real quando o Realtime estiver habilitado.
+- Políticas RLS no esquema SQL para restringir operações por usuário/membro.
+- Layout responsivo e experiência PWA.
 
-## Importante: estado atual
+## Configuração obrigatória do Supabase
 
-Esta é uma base inicial de interface, não uma rede social pronta para produção. Login, contas, publicações, curtidas e mensagens ainda usam armazenamento local do navegador/dispositivo em partes da interface. Isso **não** cria contas seguras nem sincroniza dados entre pessoas e dispositivos. Não use senhas reais nesta versão.
+1. Abra o projeto Supabase **TeurChat** e confirme que está usando o projeto correto.
+2. Em **SQL Editor**, execute o arquivo `supabase-schema.sql` completo. Ele cria as tabelas, políticas RLS, permissões da Data API e a função `start_conversation` usada para iniciar mensagens diretas. Se as tabelas já existirem, o script usa `if not exists`/políticas substituíveis para aplicar a estrutura complementar.
+3. Em **Authentication → Providers**, habilite Email. Configure a confirmação de e-mail de acordo com sua preferência.
+4. Em **Authentication → URL Configuration**, configure a Site URL e Redirect URLs para o endereço real publicado do TeurChat.
+5. Em **Project Settings → API** (ou **Connect**), copie a **Project URL** e a **Publishable key** ou a chave pública legada `anon`.
+6. Edite `config.js` e preencha `supabaseUrl` e `supabaseAnonKey`. Essas credenciais públicas podem estar no cliente; **nunca** use uma `service_role` ou chave `secret`.
+7. Faça commit e aguarde o deploy do site.
+8. No Dashboard, habilite Realtime para as tabelas `posts` e `messages` se ainda não estiverem no publication `supabase_realtime`.
 
-Para tornar o serviço real, conecte Supabase:
-1. Ative Authentication (e-mail/senha e confirmação de e-mail).
-2. Crie tabelas para profiles, posts, likes, comments, conversations e messages.
-3. Ative Row Level Security (RLS) e políticas para cada operação.
-4. Guarde imagens/vídeos no Supabase Storage com limites de tamanho e validação.
-5. Use Realtime para mensagens e atualizações de feed.
-6. Configure as variáveis públicas do Supabase no ambiente de deploy; nunca coloque service-role keys no cliente.
+## Testes de verificação após configurar
+
+- Criar conta com e-mail confirmado e entrar/sair.
+- Criar publicações em uma conta e conferir se aparecem em outra.
+- Curtir, remover curtida, comentar e excluir uma publicação própria.
+- Atualizar nome de exibição e bio.
+- Iniciar conversa com outro usuário usando o nome de usuário, enviar mensagens e conferir que uma terceira conta não consegue ler a conversa.
+- Conferir as abas de segurança do Supabase e corrigir alertas antes de abrir ao público.
 
 ## Instalação
 
-Publique o site em HTTPS. Em Android/Chrome, abra o menu do navegador e escolha **Instalar app** ou **Adicionar à tela inicial**. No desktop, use o ícone de instalação compatível do navegador. Depois, abra pelo ícone instalado. A instalação depende do navegador/sistema; nem todos oferecem o mesmo fluxo.
+Publique em HTTPS. No Android/Chrome, abra o menu do navegador e escolha **Instalar app** ou **Adicionar à tela inicial**. Depois abra pelo ícone instalado. O bloqueio fora do modo instalado é apenas uma barreira de experiência, não um mecanismo de segurança.
 
-## Limitação sobre “só funciona instalado”
+## Estado de conexão
 
-A interface verifica o modo standalone e mostra a tela de instalação fora dele. Isso é uma barreira de experiência, não DRM: um site público não consegue garantir tecnicamente que ninguém acesse seus arquivos por navegador ou ferramentas.
+O cliente está preparado para usar o Supabase, mas precisa dos valores reais no arquivo `config.js` e da execução do esquema no projeto correto. Não considere a implantação pronta até passar os testes acima. Não coloque senhas, tokens de usuário ou chaves secret no repositório.
