@@ -5,12 +5,12 @@ Aplicativo social mobile-first com identidade visual preta e branca, PWA instal�
 ## Recursos implementados no cliente
 
 - Autenticação por e-mail e senha usando Supabase Auth.
-- Perfil público com nome de usuário, nome de exibição e bio.
-- Feed de publicações compartilhadas entre contas e dispositivos.
+- Perfil público com nome de usuário, nome de exibição e bio, criado automaticamente no cadastro.
+- Feed de publicações compartilhadas entre contas e dispositivos, com aba Seguindo.
 - Curtidas e comentários armazenados no banco.
 - Busca nas publicações carregadas.
 - Mensagens diretas por nome de usuário e atualização em tempo real quando o Realtime estiver habilitado.
-- Políticas RLS no esquema SQL para restringir operações por usuário/membro.
+- Seguir/deixar de seguir, políticas RLS no esquema SQL e função validada para iniciar conversas diretas.
 - Layout responsivo e experiência PWA.
 
 ## Configuração obrigatória do Supabase
