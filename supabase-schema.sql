@@ -397,3 +397,20 @@ create policy "Members read messages" on public.messages for select to authentic
 drop policy if exists "Members send messages as themselves" on public.messages;
 create policy "Members send messages as themselves" on public.messages for insert to authenticated with check ((select auth.uid())=sender_id and private.is_conversation_member(conversation_id, (select auth.uid())));
 revoke all on function public.is_conversation_member(uuid, uuid) from public, anon, authenticated;
+
+
+-- Performance hardening for common feed and relationship queries.
+create index if not exists notifications_actor_id_idx on public.notifications(actor_id);
+create index if not exists notifications_post_id_idx on public.notifications(post_id);
+alter policy "Users create own profile" on public.profiles with check ((select auth.uid()) = id);
+alter policy "Users update own profile" on public.profiles using ((select auth.uid()) = id) with check ((select auth.uid()) = id);
+alter policy "Authenticated users create own posts" on public.posts with check ((select auth.uid()) = user_id);
+alter policy "Users update own posts" on public.posts using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+alter policy "Users delete own posts" on public.posts using ((select auth.uid()) = user_id);
+alter policy "Users like as themselves" on public.likes with check ((select auth.uid()) = user_id);
+alter policy "Users remove own likes" on public.likes using ((select auth.uid()) = user_id);
+alter policy "Authenticated users comment as themselves" on public.comments with check ((select auth.uid()) = user_id);
+alter policy "Users delete own comments" on public.comments using ((select auth.uid()) = user_id);
+alter policy "Users can read their own follows" on public.follows using ((select auth.uid()) = follower_id);
+alter policy "Users follow as themselves" on public.follows with check ((select auth.uid()) = follower_id);
+alter policy "Users unfollow as themselves" on public.follows using ((select auth.uid()) = follower_id);
