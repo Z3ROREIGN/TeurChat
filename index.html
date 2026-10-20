@@ -159,7 +159,7 @@ async function handleFeedClick(e){const like=e.target.closest('[data-like]'),com
 document.addEventListener('click',e=>{const action=e.target.closest('[data-like],[data-comment],[data-share],[data-delete],[data-follow],[data-bookmark],[data-report]');if(action){Promise.resolve(handleFeedClick(e)).catch(err=>{console.error('TeurChat action failed:',err);toast('A ação falhou. Verifique sua conexão e tente novamente.')})}});
 async function setMainPage(p){
  page=p;const main=$('#main');if(!main)return;
- $('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===p));
+ $$('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===p));
  try{
   if(p==='feed'||p==='explore'){
    main.innerHTML='<div class="feed-head"><button class="btn '+(p==='feed'?'primary':'')+'" data-feed="for-you">Para você</button><button class="btn" data-feed="following">Seguindo</button></div><div id="feed"><div class="empty">Carregando publicações…</div></div>';
