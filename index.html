@@ -207,8 +207,11 @@ async function setMainPage(p){
  $$('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===p));
  try{
   if(p==='feed'||p==='explore'){
-   main.innerHTML='<div class="feed-head"><button class="btn '+(p==='feed'?'primary':'')+'" data-feed="for-you">Para você</button><button class="btn" data-feed="following">Seguindo</button></div><div id="feed"><div class="empty">Carregando publicações…</div></div>';
-   updateAccount();await loadFeed();
+   main.innerHTML=(p==='explore'?'<section class="panel" style="margin:12px 0"><h2 class="section-title" style="padding:0;margin:0 0 12px">Descobrir</h2><form id="inlineSearchForm" style="display:flex;gap:8px"><input id="inlineSearchInput" class="field" style="margin:0;min-width:0" maxlength="100" placeholder="Buscar publicações..." aria-label="Buscar publicações"><button class="btn primary" type="submit">Buscar</button></form><div id="inlineSearchResults"></div></section>':'')+'<div class="feed-head"><button class="btn '+(p==='feed'?'primary':'')+'" data-feed="for-you">Para você</button><button class="btn" data-feed="following">Seguindo</button></div><div id="feed"><div class="empty">Carregando publicações…</div></div>';
+   updateAccount();if(p==='explore')$('#inlineSearchInput')?.focus();await loadFeed();
+  }else if(p==='search'){
+   main.innerHTML='<section class="panel" style="margin:12px 0"><h2 class="section-title" style="padding:0;margin:0 0 12px">Buscar</h2><form id="inlineSearchForm" style="display:flex;gap:8px"><input id="inlineSearchInput" class="field" style="margin:0;min-width:0" maxlength="100" placeholder="Buscar publicações..." aria-label="Buscar publicações"><button class="btn primary" type="submit">Buscar</button></form><div id="inlineSearchResults"></div></section>';
+   $('#inlineSearchInput')?.focus();
   }else if(p==='chats'){if(!session){openAuth('login');return}await renderChats()}
   else if(p==='saved'){if(!session){openAuth('login');return}await loadSavedPosts()}
   else if(p==='profile'){if(!session){openAuth('login');return}await openProfile()}
@@ -245,8 +248,8 @@ document.addEventListener('click',e=>{
  Promise.resolve(loadFeed()).catch(err=>{console.error('Feed failed:',err);showNavigationFailure(err)});
 },true);
 function showComposer(){if(!session)return openAuth('login');if(page!=='feed'&&page!=='explore')setMainPage('feed');let box=$('#composer');if(!box){const feed=$('#feed');if(!feed)return;feed.insertAdjacentHTML('beforebegin',"<div id=\"composer\" class=\"composer\"><textarea id=\"postText\" maxlength=\"1200\" placeholder=\"O que está acontecendo?\"></textarea><div class=\"composer-tools\"><label class=\"media-pick\" for=\"mediaInput\">＋ Foto ou vídeo</label><input id=\"mediaInput\" type=\"file\" accept=\"image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime\" hidden><span id=\"mediaStatus\" class=\"muted\" style=\"font-size:12px\">Fotos ou vídeos até 100 MB</span></div><div id=\"mediaPreview\"></div><div class=\"composer-foot\"><span id=\"charCount\">0/1200</span><button id=\"publishBtn\" class=\"btn primary\">Publicar ↗</button></div></div>");bindComposer();box=$('#composer')}box.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>$('#postText')?.focus(),150)}$('#mobileCreate').onclick=showComposer;
-$('#topCreate').onclick=showComposer;$('#accountBtn').onclick=()=>session?openProfile():location.href='/entrar.html';$('#rightJoin').onclick=()=>session?openProfile():location.href='/entrar.html?modo=cadastro';
-$('#searchBtn').onclick=()=>{location.href='/pesquisar.html'};$('#notificationsBtn').onclick=openNotifications;
+$('#topCreate').onclick=showComposer;$('#accountBtn').onclick=()=>session?openProfile():openAuth('login');$('#rightJoin').onclick=()=>session?openProfile():openAuth('signup');
+$('#searchBtn').onclick=()=>setMainPage('search');$('#notificationsBtn').onclick=openNotifications;
 if('serviceWorker'in navigator){navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!window.__teurSwReloaded){window.__teurSwReloaded=true;location.reload()}});window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));}
 async function boot(){if(!initSupabase())return;const sessionResult=await Promise.race([supabase.auth.getSession(),new Promise((_,reject)=>setTimeout(()=>reject(new Error('A conexão com o serviço de autenticação demorou demais. Verifique a rede ou as configurações do Supabase.')),10000))]);const {data,error}=sessionResult;if(error)throw error;session=data.session;if(session){try{await loadProfile()}catch(e){toast('Erro ao carregar perfil: '+e.message)}}enterApp();await refreshApp();supabase.auth.onAuthStateChange((_event,newSession)=>{session=newSession;if(!session)user=null;setTimeout(async()=>{if(session){try{await loadProfile()}catch(e){toast('Erro ao carregar perfil: '+e.message)}}try{await refreshApp()}catch(e){toast('Erro ao atualizar o TeurChat: '+e.message)}},0)})}
 // Erros de inicialização devem aparecer na tela, em vez de deixar o app preto/vazio.
@@ -260,31 +263,33 @@ function showBootFailure(error){
 }
 window.addEventListener('error',event=>{if(event?.message)console.error('TeurChat runtime error:',event.message,event.filename,event.lineno)});
 window.addEventListener('unhandledrejection',event=>{console.error('TeurChat rejected promise:',event.reason);const detail=event.reason?.message||String(event.reason||'');if(detail)toast('Falha ao carregar: '+detail.slice(0,140))});
-// Roteamento de segurança para os controles principais.
-document.addEventListener('click', function teurReliableControls(event) {
+// Navegação de página única: ações principais permanecem nesta tela.
+document.addEventListener('click', function teurSinglePageControls(event) {
   const target = event.target instanceof Element ? event.target : null;
-  if (!target) return;
-  const pageButton = target.closest('[data-page]');
+  const pageButton = target?.closest('[data-page]');
   if (pageButton) {
     event.preventDefault();
-    event.stopImmediatePropagation();
     Promise.resolve(setMainPage(pageButton.dataset.page)).catch(showNavigationFailure);
-    return;
   }
-  const control = target.closest('#searchBtn, #accountBtn, #rightJoin, #topCreate, #mobileCreate');
-  if (!control) return;
+});
+document.addEventListener('submit', async function teurInlineSearch(event) {
+  const form = event.target;
+  if (!(form instanceof HTMLFormElement) || form.id !== 'inlineSearchForm') return;
   event.preventDefault();
-  event.stopImmediatePropagation();
+  const term = ($('#inlineSearchInput')?.value || '').trim();
+  const out = $('#inlineSearchResults');
+  if (!out) return;
+  if (!term) { out.innerHTML='<p class="muted">Digite algo para buscar.</p>'; return; }
+  if (!supabase) { out.innerHTML='<p class="muted">A conexão ainda não está pronta.</p>'; return; }
+  out.innerHTML='<p class="muted">Buscando publicações…</p>';
   try {
-    if (control.id === 'searchBtn') location.href = '/pesquisar.html';
-    else if (control.id === 'accountBtn') location.href = session ? '/entrar.html?destino=perfil' : '/entrar.html';
-    else if (control.id === 'rightJoin') location.href = session ? '/entrar.html?destino=perfil' : '/entrar.html?modo=cadastro';
-    else showComposer();
-  } catch (error) {
-    console.error('TeurChat control failed:', error);
-    toast('Não foi possível executar essa ação. Recarregue a página e tente novamente.');
-  }
-}, true);
+    const safeTerm=term.replace(/[%_]/g,'');
+    const {data,error}=await supabase.from('posts').select('id,body,media_url,media_type,created_at,profiles(username,display_name)').ilike('body','%'+safeTerm+'%').order('created_at',{ascending:false}).limit(30);
+    if(error) throw error;
+    if(!data?.length){out.innerHTML='<div class="empty">Nenhuma publicação encontrada.</div>';return;}
+    out.innerHTML=data.map(p=>'<article class="post"><div class="post-head"><div class="avatar">'+esc((p.profiles?.display_name||p.profiles?.username||'U').slice(0,1).toUpperCase())+'</div><div><div class="user">'+esc(p.profiles?.display_name||p.profiles?.username||'Usuário')+'</div><div class="time">@'+esc(p.profiles?.username||'usuario')+'</div></div></div><p>'+esc(p.body)+'</p>'+(p.media_url?'<a href="'+esc(p.media_url)+'" target="_blank" rel="noopener" class="btn">Abrir mídia</a>':'')+'</article>').join('');
+  } catch(error) { out.innerHTML='<p class="muted">Não foi possível pesquisar: '+esc(error.message||'erro de conexão')+'</p>'; }
+});
 // A instalação é opcional: abrir no Chrome também deve permitir usar o TeurChat.
 enterApp();
 boot().catch(showBootFailure);
