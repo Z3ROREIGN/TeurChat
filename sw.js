@@ -1,4 +1,4 @@
-const CACHE = 'teurchat-shell-v20';
+const CACHE = 'teurchat-shell-v21';
 const SHELL = ['/', '/index.html', '/entrar.html', '/pesquisar.html', '/manifest.json', '/favicon.svg', '/assets/teurchat-logo.svg', '/assets/teurchat-banner.svg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
