@@ -1,15 +1,15 @@
 {
   "id": "/",
-  "name": "TeurChat — ideias, pessoas e conversas",
+  "name": "TeurChat — vídeos, ideias e conversas",
   "short_name": "TeurChat",
-  "description": "Compartilhe momentos, descubra publicações e converse com sua comunidade.",
+  "description": "Descubra vídeos, publique momentos e converse com a comunidade. Use no navegador ou instale como aplicativo.",
   "lang": "pt-BR",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#050505",
-  "theme_color": "#050505",
+  "background_color": "#080808",
+  "theme_color": "#080808",
   "icons": [
     {
       "src": "/assets/teurchat-logo.svg",
