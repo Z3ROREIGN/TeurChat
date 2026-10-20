@@ -173,7 +173,7 @@ async function setMainPage(p){
 // Navegação delegada única para desktop e celular. Evita listeners de captura
 // duplicados que cancelavam os cliques antes dos handlers reais.
 document.addEventListener('click', function teurNavigation(e) {
- const button = e.target instanceof Element ? e.target.closest('.nav [data-page], .mobile-nav [data-page]') : null;
+ const button = e.target instanceof Element ? e.target.closest('[data-page]') : null;
  if (!button) return;
  e.preventDefault();
  const next = button.dataset.page;
