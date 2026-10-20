@@ -70,33 +70,6 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
 <aside class="side right"><div class="panel"><div class="right-title">Bem-vindo ao TeurChat</div><p class="muted">Um feed social para publicar ideias, acompanhar pessoas e trocar mensagens.</p><button class="btn primary full" id="rightJoin">Criar conta</button></div><div class="panel"><div class="right-title">Em destaque</div><p class="muted">Sua próxima conversa pode começar aqui.</p><span class="pill">#TeurChat</span> <span class="pill">#Comunidade</span></div></aside></div>
 <nav class="mobile-nav"><button data-page="feed"><b>⌂</b>Início</button><button data-page="explore"><b>⌕</b>Explorar</button><button id="mobileCreate"><b>⊕</b>Publicar</button><button data-page="chats"><b>▤</b>Chats</button><button data-page="profile"><b>◉</b>Perfil</button><button data-page="saved"><b>★</b>Salvos</button></nav></div>
 <div id="modalRoot" class="hidden"></div><div id="toast" class="toast hidden"></div>
-<script>
-/* Navegação de emergência independente do código principal do app. */
-(function(){
-  function showFallback(title,detail){
-    var main=document.getElementById('main');
-    if(!main)return;
-    main.innerHTML='<section style="margin:16px;padding:22px;border:1px solid #333;border-radius:16px;background:#101010;color:#fff"><h2 style="margin-top:0">'+title+'</h2><p style="color:#aaa;overflow-wrap:anywhere">'+String(detail||'Erro sem detalhes').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})+'</p><button id="teurEmergencyReload" style="padding:12px 16px;border:0;border-radius:10px;background:#fff;color:#000;font-weight:bold">Recarregar</button></section>';
-    var b=document.getElementById('teurEmergencyReload');if(b)b.onclick=function(){location.reload()};
-  }
-  document.addEventListener('click',function(e){
-    var el=e.target&&e.target.closest?e.target.closest('.mobile-nav [data-page], .nav [data-page]'):null;
-    if(!el)return;
-    e.preventDefault();e.stopImmediatePropagation();
-    var page=el.getAttribute('data-page');
-    try{
-      if(typeof window.setMainPage==='function'){
-        Promise.resolve(window.setMainPage(page)).catch(function(err){showFallback('Não foi possível abrir esta seção',err&&err.message||err)});
-      }else{
-        showFallback('O TeurChat não terminou de iniciar','A navegação de emergência está ativa, mas o código principal não carregou. Atualize a página; se continuar, envie esta mensagem ao suporte.');
-      }
-    }catch(err){showFallback('Erro ao abrir a seção',err&&err.message||err)}
-  },true);
-  window.addEventListener('error',function(e){
-    if(e&&e.message)showFallback('O TeurChat encontrou um erro',e.message+' — linha '+(e.lineno||'?'));
-  });
-})();
-</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/config.js"></script>
 <script>
@@ -111,14 +84,6 @@ window.addEventListener('error',function teurEarlyRuntimeError(event){
  if(main)main.innerHTML='<section class="panel" style="margin:16px;padding:20px;color:#fff"><h2>O TeurChat encontrou um erro</h2><p class="muted">A execução do site falhou. Use Recarregar; se continuar, envie o detalhe abaixo.</p><p class="muted" id="teurFatalDetail" style="overflow-wrap:anywhere"></p><button class="btn primary" onclick="location.reload()">Recarregar</button></section>';
  const detail=document.querySelector('#teurFatalDetail');if(detail)detail.textContent=event.message+' (linha '+(event.lineno||'?')+')';
 });
-// Fallback de navegação registrado cedo: não depende da inicialização do Supabase.
-document.addEventListener('click',function teurEarlyNavigation(e){
- const button=e.target instanceof Element?e.target.closest('[data-page]'):null;
- if(!button)return;
- e.preventDefault();e.stopImmediatePropagation();
- const next=button.dataset.page;if(!next)return;
- try{const result=setMainPage(next);if(result&&typeof result.catch==='function')result.catch(err=>showNavigationFailure(err))}catch(err){showNavigationFailure(err)}
-},true);
 function showNavigationFailure(error){
  console.error('TeurChat navigation failed:',error);
  const main=document.querySelector('#main');
@@ -181,6 +146,18 @@ async function setMainPage(p){
   else if(p==='moderation'){if(!isAdmin()){toast('Acesso restrito à equipe de moderação.');return}await loadModeration()}
  }catch(error){showNavigationFailure(error)}
 }
+// Navegação delegada única para desktop e celular. Evita listeners de captura
+// duplicados que cancelavam os cliques antes dos handlers reais.
+document.addEventListener('click', function teurNavigation(e) {
+ const button = e.target instanceof Element ? e.target.closest('.nav [data-page], .mobile-nav [data-page]') : null;
+ if (!button) return;
+ e.preventDefault();
+ const next = button.dataset.page;
+ if (!next) return;
+ Promise.resolve(setMainPage(next)).catch(showNavigationFailure);
+});
+window.setMainPage = setMainPage;
+
 async function renderChats(){const main=$('#main');main.innerHTML='<h2 class="section-title">Mensagens</h2><div class="panel"><button id="newChat" class="btn primary full">＋ Nova conversa</button><div id="chatList"><div class="empty">Carregando conversas…</div></div></div><div id="chatWindow"></div>';$('#newChat').onclick=startConversation;const {data,error}=await supabase.from('conversation_members').select('conversation_id,conversations(id,created_at,conversation_members(user_id,profiles(username,display_name)),messages(id,body,sender_id,created_at))').eq('user_id',session.user.id);if(error){$('#chatList').innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}const rows=(data||[]).map(x=>x.conversations).filter(Boolean);$('#chatList').innerHTML=rows.map(c=>{const other=(c.conversation_members||[]).find(m=>m.user_id!==session.user.id)?.profiles;const last=(c.messages||[]).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0];return '<button class="chat-row" data-open-chat="'+esc(c.id)+'" style="width:100%;background:none;border:0;color:#fff;text-align:left"><div class="avatar">'+esc((other?.display_name||other?.username||'?')[0].toUpperCase())+'</div><div><b>' +esc(other?.display_name||other?.username||'Conversa')+'</b><div class="muted">'+esc(last?.body||'Comece a conversar')+'</div></div></button>'}).join('')||'<div class="empty">Você ainda não tem conversas. Toque em “Nova conversa”.</div>';$('#chatList').onclick=e=>{const b=e.target.closest('[data-open-chat]');if(b)openConversation(b.dataset.openChat)}}
 async function startConversation(){const username=prompt('Digite o nome de usuário da pessoa (sem @):');if(!username?.trim())return;const {data,error}=await supabase.rpc('start_conversation',{target_username:username.trim().replace(/^@/,'').toLowerCase()});if(error){toast('Não foi possível iniciar a conversa: '+error.message);return}await renderChats();openConversation(data)}
 async function openConversation(id){activeConversation=id;const target=$('#chatWindow');if(!target)return;target.innerHTML='<div class="panel"><h3>Conversa</h3><div class="messages" id="messages"><div class="empty">Carregando mensagens…</div></div><form class="chat-send" id="chatForm"><input id="chatInput" placeholder="Escreva uma mensagem..." maxlength="2000" required><button class="btn primary">Enviar</button></form></div>';await loadMessages();$('#chatForm').onsubmit=async e=>{e.preventDefault();const input=$('#chatInput'),body=input.value.trim();if(!body)return;const {error}=await supabase.from('messages').insert({conversation_id:activeConversation,sender_id:session.user.id,body});if(error){toast(error.message);return}input.value='';await loadMessages()};if(messageChannel)supabase.removeChannel(messageChannel);messageChannel=supabase.channel('messages-'+id).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'conversation_id=eq.'+id},payload=>{if(payload.new.sender_id!==session.user.id)loadMessages()}).subscribe()}
