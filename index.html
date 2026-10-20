@@ -76,6 +76,14 @@ button{transition:background .16s ease,border-color .16s ease,color .16s ease,tr
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let deferredPrompt=null, supabase=null, user=null, session=null, posts=[], likes=new Set(), followedUsers=new Set(), bookmarkedPosts=new Set(), selectedMedia=null, page='feed', feedMode='for-you', activeConversation=null, messageChannel=null, realtimeChannel=null, notificationChannel=null, notificationChannelUser=null;
 const config=window.TEURCHAT_CONFIG||{};
+// Captura erros fatais desde o início e substitui a área vazia por uma mensagem útil.
+window.addEventListener('error',function teurEarlyRuntimeError(event){
+ if(!event||!event.message)return;
+ console.error('TeurChat runtime error:',event.message,event.filename,event.lineno);
+ const main=document.querySelector('#main');
+ if(main&&!main.textContent.trim())main.innerHTML='<section class="panel" style="margin:16px;padding:20px"><h2>O TeurChat encontrou um erro</h2><p class="muted">A inicialização foi interrompida. Recarregue a página; se continuar, esta mensagem ajuda a identificar a falha.</p><p class="muted" style="overflow-wrap:anywhere"></p><button class="btn primary" onclick="location.reload()">Recarregar</button></section>';
+ const detail=main?.querySelector('.muted:last-of-type');if(detail)detail.textContent=event.message+' (linha '+(event.lineno||'?')+')';
+});
 // Fallback de navegação registrado cedo: não depende da inicialização do Supabase.
 document.addEventListener('click',function teurEarlyNavigation(e){
  const button=e.target instanceof Element?e.target.closest('[data-page]'):null;
