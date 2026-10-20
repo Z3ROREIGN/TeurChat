@@ -435,3 +435,73 @@ create policy "Users submit reports as themselves" on public.reports for insert 
 drop policy if exists "Users read their own reports" on public.reports;
 create policy "Users read their own reports" on public.reports for select to authenticated using ((select auth.uid()) = reporter_id);
 grant select, insert on public.reports to authenticated;
+
+-- Final hardening: report moderation access and conversation RPC permissions.
+create index if not exists reports_post_id_idx on public.reports(post_id);
+create index if not exists reports_reported_user_id_idx on public.reports(reported_user_id);
+drop policy if exists "Admins read all reports" on public.reports;
+drop policy if exists "Users read their own reports" on public.reports;
+create policy "Users and admins read reports" on public.reports
+for select to authenticated
+using (
+  (select auth.uid()) = reporter_id
+  or (((select auth.jwt()) -> 'app_metadata' ->> 'role') = 'admin')
+);
+drop policy if exists "Admins update report status" on public.reports;
+create policy "Admins update report status" on public.reports
+for update to authenticated
+using (((select auth.jwt()) -> 'app_metadata' ->> 'role') = 'admin')
+with check (((select auth.jwt()) -> 'app_metadata' ->> 'role') = 'admin');
+grant update on public.reports to authenticated;
+
+create schema if not exists private;
+create or replace function private.start_conversation_impl(target_username text)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  target_user_id uuid;
+  existing_conversation uuid;
+  new_conversation uuid;
+begin
+  if current_user_id is null then
+    raise exception 'É necessário entrar na conta.';
+  end if;
+  select p.id into target_user_id
+  from public.profiles p
+  where lower(p.username) = lower(trim(leading '@' from target_username))
+  limit 1;
+  if target_user_id is null then
+    raise exception 'Não encontramos esse nome de usuário.';
+  end if;
+  if target_user_id = current_user_id then
+    raise exception 'Você não pode iniciar uma conversa consigo mesmo.';
+  end if;
+  select cm1.conversation_id into existing_conversation
+  from public.conversation_members cm1
+  join public.conversation_members cm2 on cm2.conversation_id = cm1.conversation_id
+  where cm1.user_id = current_user_id and cm2.user_id = target_user_id
+    and (select count(*) from public.conversation_members cm3 where cm3.conversation_id = cm1.conversation_id) = 2
+  limit 1;
+  if existing_conversation is not null then return existing_conversation; end if;
+  insert into public.conversations default values returning id into new_conversation;
+  insert into public.conversation_members(conversation_id,user_id)
+  values (new_conversation,current_user_id),(new_conversation,target_user_id);
+  return new_conversation;
+end;
+$$;
+revoke all on function private.start_conversation_impl(text) from public, anon;
+grant usage on schema private to authenticated;
+grant execute on function private.start_conversation_impl(text) to authenticated;
+
+create or replace function public.start_conversation(target_username text)
+returns uuid
+language sql
+security invoker
+set search_path = ''
+as $$ select private.start_conversation_impl(target_username); $$;
+revoke all on function public.start_conversation(text) from public, anon;
+grant execute on function public.start_conversation(text) to authenticated;
