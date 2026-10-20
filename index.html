@@ -121,7 +121,7 @@ document.addEventListener('click',e=>{
  const nav=e.target.closest('[data-page]');
  if(nav&&!nav.closest('.mobile-nav')){e.preventDefault();const next=nav.dataset.page;if(next){try{setMainPage(next)}catch(err){console.error('Navigation failed:',err);toast('Não foi possível abrir esta seção. Tente novamente.')} }return}
  const tab=e.target.closest('[data-feed]');
- if(tab){e.preventDefault();feedMode=tab.dataset.feed||'for-you';$('[data-feed]').forEach(b=>{const active=b===tab;b.classList.toggle('primary',active);b.setAttribute('aria-pressed',String(active))});loadFeed().catch(err=>{console.error('Feed failed:',err);toast('Não foi possível atualizar o feed.')});return}
+ if(tab){e.preventDefault();feedMode=tab.dataset.feed||'for-you';document.querySelectorAll('[data-feed]').forEach(b=>{const active=b===tab;b.classList.toggle('primary',active);b.setAttribute('aria-pressed',String(active))});loadFeed().catch(err=>{console.error('Feed failed:',err);toast('Não foi possível atualizar o feed.')});return}
 },true);
 const mobileNav=$('.mobile-nav');
 if(mobileNav)mobileNav.addEventListener('click',e=>{
