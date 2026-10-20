@@ -218,16 +218,6 @@ async function setMainPage(p){
   else if(p==='moderation'){if(!isAdmin()){toast('Acesso restrito à equipe de moderação.');return}await loadModeration()}
  }catch(error){showNavigationFailure(error)}
 }
-// Navegação delegada única para desktop e celular. Evita listeners de captura
-// duplicados que cancelavam os cliques antes dos handlers reais.
-document.addEventListener('click', function teurNavigation(e) {
- const button = e.target instanceof Element ? e.target.closest('[data-page]') : null;
- if (!button) return;
- e.preventDefault();
- const next = button.dataset.page;
- if (!next) return;
- Promise.resolve(setMainPage(next)).catch(showNavigationFailure);
-});
 window.setMainPage = setMainPage;
 
 async function renderChats(){const main=$('#main');main.innerHTML='<h2 class="section-title">Mensagens</h2><div class="panel"><button id="newChat" class="btn primary full">＋ Nova conversa</button><div id="chatList"><div class="empty">Carregando conversas…</div></div></div><div id="chatWindow"></div>';$('#newChat').onclick=startConversation;const {data,error}=await supabase.from('conversation_members').select('conversation_id,conversations(id,created_at,conversation_members(user_id,profiles(username,display_name)),messages(id,body,sender_id,created_at))').eq('user_id',session.user.id);if(error){$('#chatList').innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}const rows=(data||[]).map(x=>x.conversations).filter(Boolean);$('#chatList').innerHTML=rows.map(c=>{const other=(c.conversation_members||[]).find(m=>m.user_id!==session.user.id)?.profiles;const last=(c.messages||[]).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0];return '<button class="chat-row" data-open-chat="'+esc(c.id)+'" style="width:100%;background:none;border:0;color:#fff;text-align:left"><div class="avatar">'+esc((other?.display_name||other?.username||'?')[0].toUpperCase())+'</div><div><b>' +esc(other?.display_name||other?.username||'Conversa')+'</b><div class="muted">'+esc(last?.body||'Comece a conversar')+'</div></div></button>'}).join('')||'<div class="empty">Você ainda não tem conversas. Toque em “Nova conversa”.</div>';$('#chatList').onclick=e=>{const b=e.target.closest('[data-open-chat]');if(b)openConversation(b.dataset.openChat)}}
