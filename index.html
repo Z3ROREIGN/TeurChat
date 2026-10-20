@@ -135,7 +135,7 @@ async function loadFeed(){
  }
 }
 function setupVideoFeed(){
- const videos=$('#feed video.community-video');if(!videos.length)return;
+ const videos=$$('#feed video.community-video');if(!videos.length)return;
  // Um único vídeo ativo: escolhe o mais visível e pausa os restantes.
  let activeVideo=null;
  const syncPlayState=()=>{
