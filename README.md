@@ -1,42 +1,55 @@
 # TeurChat
 
-Rede social mobile-first, com identidade visual preta e branca, que combina feed social, publicações com foto/vídeo, perfis, seguidores, curtidas, comentários, itens salvos, notificações e mensagens em tempo real.
+Rede social mobile-first com visual preto e branco, feed, perfis, publicações de foto/vídeo, seguidores, curtidas, comentários, itens salvos, busca, mensagens e notificações.
 
-## Recursos
+## Recursos implementados
 
-- Cadastro, login, sessão persistente e perfil público.
-- Feed “Para você” e feed “Seguindo”.
-- Publicações de texto, fotos e vídeos; prévia local antes de publicar.
-- Fotos de perfil, denúncia de publicações e registro seguro de denúncias para moderação.
-- Supabase Storage com bucket público de mídia, upload autenticado, pastas separadas por usuário e limite de 100 MB por arquivo.
-- Reprodução de vídeo no feed com controles nativos e suporte a telas móveis.
-- Curtidas, comentários, seguir/deixar de seguir e excluir as próprias publicações.
-- Salvar/remover publicações e página “Salvos”.
-- Busca de publicações no banco de dados.
-- Notificações para curtidas, comentários, novos seguidores e mensagens.
-- Mensagens privadas em tempo real, com conversas criadas pelo RPC validado.
-- Políticas RLS, funções com permissões restritas, índices e PWA instalável.
-- Funciona no navegador móvel; instalar o PWA é opcional.
+- Cadastro, login, sessão persistente e perfis públicos.
+- Feed “Para você” com classificação básica por recência e engajamento; feed “Seguindo”.
+- Publicações de texto, imagens e vídeos, com prévia local antes de publicar.
+- Foto de perfil, curtidas, comentários, seguir/deixar de seguir e exclusão das próprias publicações.
+- Itens salvos e página “Salvos”.
+- Busca de publicações por texto.
+- Denúncias com motivo, detalhes e status de análise.
+- Central de moderação para contas com a função confiável `app_metadata.role = "admin"`.
+- Notificações para curtidas, comentários, novos seguidores e mensagens, contador de não lidas e atualizações em tempo real.
+- Alertas do navegador quando o TeurChat está aberto e a permissão foi concedida.
+- Mensagens privadas em tempo real.
+- Supabase Storage com upload autenticado, pastas por usuário e limite de 100 MB por arquivo.
+- Políticas RLS, índices e RPC de conversa endurecida, sem funções SECURITY DEFINER expostas diretamente no schema público.
+- Funciona no Chrome móvel; instalar o PWA é opcional.
 
-## Stack
+## Ativar a central de moderação
+
+No Supabase, abra **Authentication → Users**, selecione a conta que será administradora e atribua no **app metadata** a propriedade:
+
+```json
+{ "role": "admin" }
+```
+
+Não coloque essa função em `user_metadata`, pois o próprio usuário pode alterar esse campo. Depois de alterar o app metadata, encerre e inicie a sessão novamente para atualizar o JWT. A política do banco verifica a função e protege a leitura/alteração das denúncias; esconder o botão no site não é a única barreira.
+
+## Stack e configuração
 
 - HTML, CSS e JavaScript.
 - Supabase Auth, PostgreSQL, Row Level Security, Storage e Realtime.
-- Vercel com deploy automático a partir da branch `main`.
+- Vercel com deploy automático pela branch `main`.
 
-## Configuração
+`config.js` contém apenas a URL do projeto e uma chave publicável do Supabase. Nunca coloque uma chave `service_role` ou secret no frontend.
 
-O arquivo `config.js` usa apenas a URL do projeto e uma chave publicável do Supabase. **Nunca** coloque uma chave `service_role` ou uma chave secreta no frontend.
+`supabase-schema.sql` documenta a estrutura completa e as migrações finais do projeto. As mudanças correspondentes já foram aplicadas e verificadas no banco conectado.
 
-O esquema completo, incluindo Storage, bookmarks, notificações, triggers e políticas, está em `supabase-schema.sql`. No projeto TeurChat, as alterações já foram aplicadas pelo conector e verificadas no banco.
+## Limites que ainda exigem infraestrutura adicional
 
-## Limites atuais
+- A classificação “Para você” é uma recomendação inicial por recência e engajamento, não um algoritmo de escala semelhante ao TikTok.
+- Alertas do navegador funcionam enquanto a página está aberta; **push real quando o site está fechado** requer chaves VAPID e um serviço backend para enviar notificações.
+- Ainda não há transmissão ao vivo nem editor avançado de vídeo com corte/renderização. Esses recursos exigem infraestrutura e testes adicionais; controles nativos de reprodução não são um editor.
+- O upload de mídia é limitado a 100 MB por arquivo; os limites totais dependem do plano do Supabase.
 
-- Upload por arquivo limitado a 100 MB pelo bucket. Limites de transferência e armazenamento dependem do plano do Supabase.
-- A busca atual localiza publicações por texto; não é um mecanismo de recomendação algorítmica como o TikTok.
-- As denúncias são registradas para revisão, mas ainda não existe painel administrativo dedicado nem moderação automatizada. Também não há transmissão ao vivo, edição avançada de vídeo ou notificações push nativas.
-- Antes de um lançamento público, faça testes reais de cadastro, confirmação de e-mail, upload, reprodução, mensagens e recuperação de conta nas configurações de Auth do Supabase.
+## Verificação antes do lançamento público
+
+O código JavaScript foi verificado quanto à sintaxe e a implantação da Vercel está como `READY`. O banco foi verificado para RLS em todas as 11 tabelas públicas e sem alertas atuais no advisor de segurança. Isso não substitui um teste de ponta a ponta em navegador com uma conta real. Antes de divulgar, teste cadastro/confirmação de e-mail, login, upload, reprodução, curtidas, comentários, mensagens, denúncias e recuperação de conta.
 
 ## Desenvolvimento
 
-O projeto é estático: abra `index.html` por um servidor local ou faça deploy na Vercel. Para mudanças no banco, revise `supabase-schema.sql` antes de aplicar.
+O projeto é estático: abra `index.html` por um servidor local ou use a Vercel. Revise o SQL antes de aplicar mudanças em outro projeto.
