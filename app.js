@@ -2,7 +2,7 @@
   'use strict';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null, isAdmin: false, adminUsers: [] };
+  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null, isAdmin: false, adminUsers: [], activeConversationId: null, chatChannel: null, followListMode: null };
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const initials = v => (String(v || 'U').trim()[0] || 'U').toUpperCase();
   const notice = (msg, type = '') => {
@@ -150,7 +150,9 @@
     state.posts = posts || []; state.viewedProfileId = userId;
     $('#feedFilters').hidden = true; $('#searchBar').hidden = true; $('#pageTitle').textContent = '@' + (p.username || 'perfil');
     const own = userId === state.session?.user?.id;
-    $('#content').innerHTML = '<button class="btn secondary" data-action="back-feed">← Voltar ao feed</button><section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || p.username) + '</h2><p>@' + esc(p.username) + '</p><div class="profile-badges">' + renderBadges(publicBadges) + '</div><p>' + esc(p.bio || '') + '</p>' + (own ? '<button class="btn secondary" data-action="edit-profile">Editar perfil</button>' : '<button class="btn secondary" data-action="follow" data-id="' + esc(p.id) + '" data-username="' + esc(p.username) + '">Seguir / deixar de seguir</button>') + '</div></section><section class="panel"><h3>Publicações de @' + esc(p.username) + '</h3><div id="userPosts">' + (state.posts.length ? state.posts.map(renderPost).join('') : '<p class="muted">Este perfil ainda não publicou fotos ou vídeos.</p>') + '</div></section>';
+    const [followers,following,followState]=await Promise.all([state.client.from('follows').select('follower_id',{count:'exact',head:true}).eq('followed_id',userId),state.client.from('follows').select('followed_id',{count:'exact',head:true}).eq('follower_id',userId),own?Promise.resolve({data:null}):state.client.from('follows').select('follower_id').eq('follower_id',state.session?.user?.id||'00000000-0000-0000-0000-000000000000').eq('followed_id',userId).maybeSingle()]);
+    const followingThis=!!followState.data;
+    $('#content').innerHTML = '<button class="btn secondary" data-action="back-feed">← Voltar ao feed</button><section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || p.username) + '</h2><p>@' + esc(p.username) + '</p><div class="profile-badges">' + renderBadges(publicBadges) + '</div><div class="profile-stats"><button data-action="open-follow-list" data-id="'+esc(p.id)+'" data-kind="followers"><strong>'+(followers.count||0)+'</strong><span>Seguidores</span></button><button data-action="open-follow-list" data-id="'+esc(p.id)+'" data-kind="following"><strong>'+(following.count||0)+'</strong><span>Seguindo</span></button><span><strong>'+state.posts.length+'</strong><span>Publicações</span></span></div><p>' + esc(p.bio || '') + '</p>' + (own ? '<button class="btn secondary" data-action="edit-profile">Editar perfil</button>' : '<button class="btn '+(followingThis?'secondary':'primary')+'" data-action="follow" data-id="' + esc(p.id) + '" data-username="' + esc(p.username) + '">'+(followingThis?'Seguindo · Deixar de seguir':'Seguir')+'</button><button class="btn secondary" data-action="start-chat" data-id="'+esc(p.id)+'" data-username="'+esc(p.username)+'">Mensagem</button>') + '</div></section><section class="panel"><div class="section-heading"><h3>Publicações de @' + esc(p.username) + '</h3><span class="muted small">'+state.posts.length+' itens</span></div><div id="userPosts">' + (state.posts.length ? state.posts.map(renderPost).join('') : '<p class="muted">Este perfil ainda não publicou fotos ou vídeos.</p>') + '</div></section>';
   }  async function fetchPosts() {
     let query = state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url,profile_badges(badge_key)),likes(user_id),comments(id)').order('created_at',{ascending:false}).limit(40);
     if (state.page === 'explore' && state.search) query = query.ilike('body','%' + state.search.replace(/[%_]/g,'') + '%');
@@ -200,21 +202,87 @@
     if (state.page === 'profile') {
       if (!authRequired()) { go('home'); return; }
       const p = state.profile || {};
-      $('#content').innerHTML = '<section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || 'Meu perfil') + '</h2><p>@' + esc(p.username || 'usuario') + '</p><div class="profile-badges">' + renderBadges(state.badges) + '</div><p>' + esc(p.bio || 'Adicione uma descrição ao seu perfil.') + '</p><button class="btn secondary" data-action="edit-profile">' + svgIcon('user') + ' Editar perfil</button>' + (state.isAdmin ? '<button class="btn primary" data-action="admin-panel">' + svgIcon('shield-check') + ' Painel administrativo</button>' : '') + '<button class="btn secondary" data-action="signout">Sair da conta</button></div></section><section class="panel"><h3>Minhas publicações</h3><div id="myPosts"><div class="loading">Carregando…</div></div></section>';
+      const [followers,following]=await Promise.all([state.client.from('follows').select('follower_id',{count:'exact',head:true}).eq('followed_id',state.session.user.id),state.client.from('follows').select('followed_id',{count:'exact',head:true}).eq('follower_id',state.session.user.id)]);
+      $('#content').innerHTML = '<section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || 'Meu perfil') + '</h2><p>@' + esc(p.username || 'usuario') + '</p><div class="profile-badges">' + renderBadges(state.badges) + '</div><div class="profile-stats"><button data-action="open-follow-list" data-id="'+esc(state.session.user.id)+'" data-kind="followers"><strong>'+(followers.count||0)+'</strong><span>Seguidores</span></button><button data-action="open-follow-list" data-id="'+esc(state.session.user.id)+'" data-kind="following"><strong>'+(following.count||0)+'</strong><span>Seguindo</span></button></div><p>' + esc(p.bio || 'Adicione uma descrição ao seu perfil.') + '</p><button class="btn secondary" data-action="edit-profile">' + svgIcon('user') + ' Editar perfil</button>' + (state.isAdmin ? '<button class="btn primary" data-action="admin-panel">' + svgIcon('shield-check') + ' Painel administrativo</button>' : '') + '<button class="btn secondary" data-action="signout">Sair da conta</button></div></section><section class="panel"><h3>Minhas publicações</h3><div id="myPosts"><div class="loading">Carregando…</div></div></section>';
       const {data,error}=await state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url,profile_badges(badge_key)),likes(user_id),comments(id)').eq('user_id',state.session.user.id).order('created_at',{ascending:false}).limit(30);
       if(error) throw error; $('#myPosts').innerHTML=data?.length?data.map(renderPost).join(''):'<p class="muted">Você ainda não publicou nada.</p>'; return;
     }
     if (state.page === 'admin') { if (!state.isAdmin) { notice('Esta área é exclusiva da administração.', 'error'); go('home'); return; } await renderAdminPage(); return; }
     if (state.page === 'support') { await renderSupportPage(); return; }
-    if (state.page === 'messages') {
-      if (!authRequired()) { go('home'); return; }
-      $('#content').innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('message') + '</div><h2>Suas conversas</h2><p>Para começar, encontre uma pessoa em Explorar e abra o perfil dela. A área de mensagens depende das permissões de conversas do banco.</p><button class="btn primary" data-go="explore">Encontrar pessoas</button></section>'; return;
-    }
-    if (state.page === 'notifications') {
-      if (!authRequired()) { go('home'); return; }
-      $('#content').innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('bell') + '</div><h2>Notificações</h2><p>Você verá novidades da sua conta aqui quando houver notificações disponíveis.</p><button class="btn secondary" data-action="refresh">Atualizar</button></section>'; return;
-    }
+    if (state.page === 'messages') { if (!authRequired()) { go('home'); return; } await renderMessagesPage(); return; }
+    if (state.page === 'notifications') { if (!authRequired()) { go('home'); return; } await renderNotificationsPage(); return; }
   }
+
+  async function renderMessagesPage() {
+    $('#content').innerHTML='<section class="chat-layout"><aside class="chat-sidebar"><div class="section-heading"><div><p class="eyebrow">INBOX</p><h2>Mensagens</h2></div><button class="btn secondary" data-action="chat-refresh">↻</button></div><form id="chatSearchForm" class="search-form"><input id="chatSearch" placeholder="Buscar pessoa" autocomplete="off"><button class="btn secondary" type="submit">Buscar</button></form><div id="chatPeople"></div><div id="chatList"><div class="loading">Carregando conversas…</div></div></aside><section class="chat-window" id="chatWindow"><div class="empty-state"><h3>Suas conversas</h3><p>Escolha uma conversa ou procure uma pessoa para enviar mensagem.</p></div></section></section>';
+    await loadChatList();
+  }
+  async function loadChatList() {
+    const box=$('#chatList');if(!box||!state.session?.user)return;
+    const {data,error}=await state.client.from('conversations').select('id,created_at,conversation_members(user_id,profiles!conversation_members_user_id_fkey(id,username,display_name,avatar_url))').order('created_at',{ascending:false}).limit(100);
+    if(error)throw error;
+    const items=(data||[]).map(c=>({...c,other:(c.conversation_members||[]).find(m=>m.user_id!==state.session.user.id)?.profiles})).filter(c=>c.other);
+    box.innerHTML=items.length?items.map(c=>'<button class="chat-person '+(state.activeConversationId===c.id?'active':'')+'" data-action="open-chat" data-id="'+esc(c.id)+'">'+avatar(c.other)+'<span><strong>'+esc(c.other.display_name||c.other.username)+'</strong><small>@'+esc(c.other.username)+'</small></span></button>').join(''):'<p class="muted small">Nenhuma conversa ainda. Busque uma pessoa acima para começar.</p>';
+    if(state.activeConversationId&&!items.some(c=>c.id===state.activeConversationId))state.activeConversationId=null;
+    if(state.activeConversationId)await openConversation(state.activeConversationId);
+  }
+  async function searchChatPeople(term) {
+    const out=$('#chatPeople');if(!out)return;
+    const clean=String(term||'').trim().replace(/^@/,'').replace(/[%_]/g,'');
+    if(!clean){out.innerHTML='';return;}
+    const {data,error}=await state.client.from('profiles').select('id,username,display_name,avatar_url').or('username.ilike.%'+clean+'%,display_name.ilike.%'+clean+'%').neq('id',state.session.user.id).limit(10);
+    if(error)throw error;
+    out.innerHTML=(data||[]).map(p=>'<button class="chat-person" data-action="start-chat" data-id="'+esc(p.id)+'" data-username="'+esc(p.username)+'">'+avatar(p)+'<span><strong>'+esc(p.display_name||p.username)+'</strong><small>@'+esc(p.username)+'</small></span><b>+</b></button>').join('')||'<p class="muted small">Nenhuma pessoa encontrada.</p>';
+  }
+  async function startChat(userId,username) {
+    if(!authRequired())return;
+    const {data,error}=await state.client.rpc('start_direct_conversation',{target_user:userId});if(error)throw error;
+    state.activeConversationId=data;state.page='messages';go('messages');notice('Conversa com @'+username+' aberta.','success');
+    setTimeout(()=>openConversation(data).catch(e=>notice(e.message,'error')),100);
+  }
+  async function openConversation(conversationId) {
+    state.activeConversationId=conversationId;
+    const box=$('#chatWindow');if(!box)return;
+    const {data:members,error:memberError}=await state.client.from('conversation_members').select('user_id,profiles!conversation_members_user_id_fkey(id,username,display_name,avatar_url)').eq('conversation_id',conversationId);
+    if(memberError)throw memberError;
+    const other=(members||[]).find(m=>m.user_id!==state.session.user.id)?.profiles||{};
+    box.innerHTML='<header class="chat-header">'+avatar(other)+'<div><strong>'+esc(other.display_name||other.username||'Conversa')+'</strong><small>@'+esc(other.username||'usuario')+'</small></div><button class="btn secondary" data-action="chat-refresh">Atualizar</button></header><div id="chatMessages" class="chat-messages"><div class="loading">Carregando mensagens…</div></div><form id="messageForm" data-conversation-id="'+esc(conversationId)+'" class="chat-compose"><textarea name="body" required maxlength="2000" rows="1" placeholder="Escreva uma mensagem…"></textarea><button class="btn primary" type="submit">Enviar</button></form>';
+    await loadChatMessages(conversationId);
+    if(state.chatChannel){state.client.removeChannel(state.chatChannel);state.chatChannel=null;}
+    state.chatChannel=state.client.channel('chat-'+conversationId).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'conversation_id=eq.'+conversationId},()=>loadChatMessages(conversationId).catch(console.error)).subscribe();
+  }
+  async function loadChatMessages(conversationId) {
+    const box=$('#chatMessages');if(!box)return;
+    const {data,error}=await state.client.from('messages').select('id,body,sender_id,created_at,profiles!messages_sender_id_fkey(username,display_name)').eq('conversation_id',conversationId).order('created_at',{ascending:true}).limit(200);
+    if(error)throw error;
+    box.innerHTML=(data||[]).map(m=>'<article class="chat-bubble '+(m.sender_id===state.session.user.id?'mine':'')+'"><p>'+esc(m.body)+'</p><time>'+esc(new Date(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))+'</time></article>').join('')||'<p class="muted small">Comece a conversa com uma mensagem.</p>';
+    box.scrollTop=box.scrollHeight;
+  }
+  async function sendMessage(form) {
+    if(!authRequired())return;
+    const body=String(new FormData(form).get('body')||'').trim(),conversation_id=form.dataset.conversationId;
+    if(!body)return;
+    const submit=form.querySelector('button[type=submit]');if(submit)submit.disabled=true;
+    try{const {error}=await state.client.from('messages').insert({conversation_id,sender_id:state.session.user.id,body});if(error)throw error;form.reset();await loadChatMessages(conversation_id);}
+    catch(e){notice('Mensagem não enviada: '+e.message,'error');}
+    finally{if(submit)submit.disabled=false;}
+  }
+  async function renderNotificationsPage() {
+    const {data,error}=await state.client.from('notifications').select('id,kind,created_at,read_at,actor_id,profiles!notifications_actor_id_fkey(username,display_name,avatar_url)').eq('recipient_id',state.session.user.id).order('created_at',{ascending:false}).limit(100);
+    if(error)throw error;
+    $('#content').innerHTML='<section class="panel"><div class="section-heading"><div><p class="eyebrow">ATIVIDADE</p><h2>Notificações</h2></div><button class="btn secondary" data-action="notifications-read-all">Marcar lidas</button></div>'+(data||[]).map(n=>'<article class="notification-row '+(n.read_at?'':'unread')+'">'+avatar(n.profiles||{})+'<div><strong>'+esc(n.profiles?.display_name||n.profiles?.username||'TeurChat')+'</strong><p>'+esc(({like:'curtiu sua publicação',comment:'comentou em sua publicação',follow:'começou a seguir você',message:'enviou uma mensagem'}[n.kind]||'interagiu com você'))+'</p><small>'+esc(new Date(n.created_at).toLocaleString('pt-BR'))+'</small></div></article>').join('')||'<p class="muted">Você ainda não tem notificações.</p>'+'</section>';
+    const unread=(data||[]).filter(n=>!n.read_at).map(n=>n.id);if(unread.length)await state.client.from('notifications').update({read_at:new Date().toISOString()}).in('id',unread);
+  }
+  async function openFollowList(userId,kind) {
+    const column=kind==='followers'?'follower_id':'followed_id',filter=kind==='followers'?'followed_id':'follower_id';
+    const {data,error}=await state.client.from('follows').select('follower_id,followed_id').eq(filter,userId).order('created_at',{ascending:false}).limit(200);
+    if(error)throw error;
+    const ids=(data||[]).map(x=>x[column]).filter(Boolean);
+    let people=[];
+    if(ids.length){const result=await state.client.from('profiles').select('id,username,display_name,avatar_url').in('id',ids);if(result.error)throw result.error;people=result.data||[];}
+    $('#content').innerHTML='<button class="btn secondary" data-action="back-profile">← Voltar ao perfil</button><section class="panel"><h2>'+(kind==='followers'?'Seguidores':'Seguindo')+'</h2><div class="people-list">'+people.map(p=>'<article class="person-row">'+avatar(p)+'<div class="person-copy"><strong>'+esc(p.display_name||p.username)+'</strong><span>@'+esc(p.username)+'</span></div><button class="btn secondary" data-action="view-profile" data-id="'+esc(p.id)+'">Perfil</button></article>').join('')+'</div>'+(people.length?'':'<p class="muted">Esta lista ainda está vazia.</p>')+'</section>';
+  }
+
   async function renderSupportPage() {
     if(!authRequired()){go('home');return;}
     $('#content').innerHTML='<section class="panel"><p class="eyebrow">ATENDIMENTO TEURCHAT</p><h2>Central de ajuda</h2><p class="muted">Suporte, denúncias, problemas técnicos e recursos de moderação.</p><form id="caseForm"><label>Categoria<select name="category" required><option value="support">Suporte geral</option><option value="report">Denúncia de usuário ou conteúdo</option><option value="bug">Problema técnico</option><option value="appeal">Recurso de moderação</option></select></label><label>Assunto<input name="subject" required minlength="3" maxlength="120"></label><label>Detalhes<textarea name="message" required minlength="10" maxlength="4000" rows="5" placeholder="Explique a situação. Não envie senhas ou dados financeiros."></textarea></label><label>Usuário relacionado (opcional)<input name="target_username" maxlength="24" placeholder="@usuario"></label><label>Link relacionado (opcional)<input name="target_url" type="url" maxlength="1000"></label><button class="btn primary" type="submit" data-busy>Enviar chamado</button></form></section><section class="panel"><h3>Meus chamados</h3><button class="btn secondary" data-action="support-refresh">Atualizar</button><div id="myCases">Carregando…</div></section>';
@@ -458,6 +526,12 @@
     if(action==='admin-audit-refresh') return loadAdminAudit();
     if(action==='admin-case-save') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); const status=$('[data-case-status="'+CSS.escape(id)+'"]')?.value||'open'; const priority=$('[data-case-priority="'+CSS.escape(id)+'"]')?.value||'normal'; const resolution=$('[data-case-resolution="'+CSS.escape(id)+'"]')?.value||''; const {error}=await state.client.rpc('admin_update_case',{target_case:id,new_status:status,new_priority:priority,case_resolution:resolution,assign_to_self:true});if(error)throw error;notice('Chamado atualizado e decisão registrada.','success');await loadAdminCases();await loadAdminAudit();return; }
     if(action==='support-refresh') return loadMyCases();
+    if(action==='chat-refresh') return loadChatList();
+    if(action==='open-chat') return openConversation(id);
+    if(action==='start-chat') return startChat(id,el.dataset.username||'usuario');
+    if(action==='open-follow-list') return openFollowList(id,el.dataset.kind||'followers');
+    if(action==='back-profile') { if(state.viewedProfileId) return openUserProfile(state.viewedProfileId); return go('profile'); }
+    if(action==='notifications-read-all') { const {error}=await state.client.from('notifications').update({read_at:new Date().toISOString()}).eq('recipient_id',state.session.user.id).is('read_at',null);if(error)throw error;return renderNotificationsPage(); }
     if(action==='admin-badge') return adminBadge(id,el.dataset.username);
     if(action==='admin-remove-badge') return adminRemoveBadge(id,el.dataset.username);
     if(action==='admin-delete-comment') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); if(!confirm('Excluir este comentário?'))return; const {error}=await state.client.rpc('admin_delete_comment',{target_comment:id}); if(error)throw error; notice('Comentário removido.','success'); const postId=$('#commentForm')?.dataset.postId; if(postId) await loadComments(postId); await renderPage(); return; }
@@ -497,6 +571,8 @@
     if(form.id==='commentForm'){e.preventDefault();await submitComment(form);}
     if(form.id==='profileForm'){e.preventDefault();await submitProfile(form);}
     if(form.id==='caseForm'){e.preventDefault();await submitCase(form);}
+    if(form.id==='messageForm'){e.preventDefault();await sendMessage(form);}
+    if(form.id==='chatSearchForm'){e.preventDefault();await searchChatPeople($('#chatSearch').value);}
     if(form.id==='searchForm'){e.preventDefault();state.search=$('#searchInput').value.trim();state.page='explore';go('explore');}
     if(form.id==='peopleSearchForm'){e.preventDefault();await searchProfiles($('#peopleSearch').value);}
   });
