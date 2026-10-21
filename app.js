@@ -143,12 +143,14 @@
   async function openUserProfile(userId) {
     const {data:p,error} = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url').eq('id',userId).single();
     if (error) throw error;
+    const {data:userBadgeRows} = await state.client.from('profile_badges').select('badge_key').eq('user_id',userId);
+    const publicBadges=(userBadgeRows||[]).map(row=>row.badge_key);
     const {data:posts,error:postError} = await state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').eq('user_id',userId).order('created_at',{ascending:false}).limit(40);
     if (postError) throw postError;
     state.posts = posts || []; state.viewedProfileId = userId;
     $('#feedFilters').hidden = true; $('#searchBar').hidden = true; $('#pageTitle').textContent = '@' + (p.username || 'perfil');
     const own = userId === state.session?.user?.id;
-    $('#content').innerHTML = '<button class="btn secondary" data-action="back-feed">← Voltar ao feed</button><section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || p.username) + '</h2><p>@' + esc(p.username) + '</p><p>' + esc(p.bio || '') + '</p>' + (own ? '<button class="btn secondary" data-action="edit-profile">Editar perfil</button>' : '<button class="btn secondary" data-action="follow" data-id="' + esc(p.id) + '" data-username="' + esc(p.username) + '">Seguir / deixar de seguir</button>') + '</div></section><section class="panel"><h3>Publicações de @' + esc(p.username) + '</h3><div id="userPosts">' + (state.posts.length ? state.posts.map(renderPost).join('') : '<p class="muted">Este perfil ainda não publicou fotos ou vídeos.</p>') + '</div></section>';
+    $('#content').innerHTML = '<button class="btn secondary" data-action="back-feed">← Voltar ao feed</button><section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || p.username) + '</h2><p>@' + esc(p.username) + '</p><div class="profile-badges">' + renderBadges(publicBadges) + '</div><p>' + esc(p.bio || '') + '</p>' + (own ? '<button class="btn secondary" data-action="edit-profile">Editar perfil</button>' : '<button class="btn secondary" data-action="follow" data-id="' + esc(p.id) + '" data-username="' + esc(p.username) + '">Seguir / deixar de seguir</button>') + '</div></section><section class="panel"><h3>Publicações de @' + esc(p.username) + '</h3><div id="userPosts">' + (state.posts.length ? state.posts.map(renderPost).join('') : '<p class="muted">Este perfil ainda não publicou fotos ou vídeos.</p>') + '</div></section>';
   }  async function fetchPosts() {
     let query = state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').order('created_at',{ascending:false}).limit(40);
     if (state.page === 'explore' && state.search) query = query.ilike('body','%' + state.search.replace(/[%_]/g,'') + '%');
