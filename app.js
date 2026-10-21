@@ -254,6 +254,7 @@
     const box=$('#chatMessages');if(!box)return;
     const {data,error}=await state.client.from('messages').select('id,body,sender_id,created_at,attachment_url,attachment_type,attachment_name,profiles!messages_sender_id_fkey(username,display_name)').eq('conversation_id',conversationId).order('created_at',{ascending:true}).limit(200);
     if(error)throw error;
+    for(const m of (data||[])){if(m.attachment_url){const signed=await state.client.storage.from('chat-media').createSignedUrl(m.attachment_url,3600);if(signed.error){console.warn('Anexo indisponível:',signed.error.message);m.attachment_url=null;}else m.attachment_url=signed.data.signedUrl;}}
     box.innerHTML=(data||[]).map(m=>'<article class="chat-bubble '+(m.sender_id===state.session.user.id?'mine':'')+'">'+(m.attachment_url?(m.attachment_type==='video'?'<video class="chat-attachment" src="'+esc(m.attachment_url)+'" controls playsinline preload="metadata"></video>':'<a href="'+esc(m.attachment_url)+'" target="_blank" rel="noopener"><img class="chat-attachment" src="'+esc(m.attachment_url)+'" alt="'+esc(m.attachment_name||'Foto recebida')+'" loading="lazy"></a>'):'')+(m.body?'<p>'+esc(m.body)+'</p>':'')+'<time>'+esc(new Date(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))+'</time></article>').join('')||'<p class="muted small">Comece a conversa com uma mensagem.</p>';
     box.scrollTop=box.scrollHeight;
   }
@@ -270,7 +271,7 @@
         if(file.type.startsWith('video/')){const duration=await new Promise((resolve,reject)=>{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>{URL.revokeObjectURL(v.src);resolve(v.duration)};v.onerror=()=>{URL.revokeObjectURL(v.src);reject(new Error('Não foi possível verificar a duração do vídeo.'))};v.src=URL.createObjectURL(file)});if(!Number.isFinite(duration)||duration>600)throw new Error('O vídeo deve ter no máximo 10 minutos.');}
         const ext=(file.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'')||'bin';const path=state.session.user.id+'/'+conversation_id+'/'+Date.now()+'-'+Math.random().toString(36).slice(2)+'.'+ext;
         const {data:uploaded,error:uploadError}=await state.client.storage.from('chat-media').upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});if(uploadError)throw uploadError;
-        attachment_url=state.client.storage.from('chat-media').getPublicUrl(uploaded.path).data.publicUrl;attachment_type=file.type.startsWith('video/')?'video':'image';attachment_name=file.name.slice(0,180);
+        attachment_url=uploaded.path;attachment_type=file.type.startsWith('video/')?'video':'image';attachment_name=file.name.slice(0,180);
       }
       const {error}=await state.client.from('messages').insert({conversation_id,sender_id:state.session.user.id,body,attachment_url,attachment_type,attachment_name});if(error)throw error;form.reset();await loadChatMessages(conversation_id);
     }
