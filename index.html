@@ -92,7 +92,7 @@ button{font-family:inherit}
 <div id="modalRoot" class="hidden"></div><div id="toast" class="toast hidden"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/config.js"></script>
-<script src="/controls.js"></script>
+<script src="/controls.js?v=27"></script>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let deferredPrompt=null, supabase=null, user=null, session=null, posts=[], likes=new Set(), followedUsers=new Set(), bookmarkedPosts=new Set(), selectedMedia=null, page='feed', feedMode='for-you', activeConversation=null, messageChannel=null, realtimeChannel=null, notificationChannel=null, notificationChannelUser=null;
