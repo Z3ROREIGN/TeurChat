@@ -20,7 +20,7 @@
     $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.go === state.page));
     $('#pageTitle').textContent = ({home:'Início',explore:'Explorar',saved:'Salvos',messages:'Mensagens',profile:'Meu perfil',notifications:'Notificações',admin:'Administração',support:'Central de ajuda'})[state.page];
     const adminNav = $('#adminNav'); if (adminNav) adminNav.hidden = !state.isAdmin;
-    renderPage().catch(e => { console.error(e); notice('Não foi possível abrir esta área: ' + (e.message || 'erro')); });
+    return renderPage().catch(e => { console.error(e); notice('Não foi possível abrir esta área: ' + (e.message || 'erro')); });
   }
   function openModal(kind, extra = {}) {
     const modal = $('#modal'); if (!modal) return;
@@ -237,8 +237,7 @@
   async function startChat(userId,username) {
     if(!authRequired())return;
     const {data,error}=await state.client.rpc('start_direct_conversation',{target_user:userId});if(error)throw error;
-    state.activeConversationId=data;state.page='messages';go('messages');notice('Conversa com @'+username+' aberta.','success');
-    setTimeout(()=>openConversation(data).catch(e=>notice(e.message,'error')),100);
+    state.activeConversationId=data;state.page='messages';await go('messages');await openConversation(data);notice('Conversa com @'+username+' aberta.','success');
   }
   async function openConversation(conversationId) {
     state.activeConversationId=conversationId;
@@ -270,7 +269,8 @@
   async function renderNotificationsPage() {
     const {data,error}=await state.client.from('notifications').select('id,kind,created_at,read_at,actor_id,profiles!notifications_actor_id_fkey(username,display_name,avatar_url)').eq('recipient_id',state.session.user.id).order('created_at',{ascending:false}).limit(100);
     if(error)throw error;
-    $('#content').innerHTML='<section class="panel"><div class="section-heading"><div><p class="eyebrow">ATIVIDADE</p><h2>Notificações</h2></div><button class="btn secondary" data-action="notifications-read-all">Marcar lidas</button></div>'+(data||[]).map(n=>'<article class="notification-row '+(n.read_at?'':'unread')+'">'+avatar(n.profiles||{})+'<div><strong>'+esc(n.profiles?.display_name||n.profiles?.username||'TeurChat')+'</strong><p>'+esc(({like:'curtiu sua publicação',comment:'comentou em sua publicação',follow:'começou a seguir você',message:'enviou uma mensagem'}[n.kind]||'interagiu com você'))+'</p><small>'+esc(new Date(n.created_at).toLocaleString('pt-BR'))+'</small></div></article>').join('')||'<p class="muted">Você ainda não tem notificações.</p>'+'</section>';
+    const notificationRows=(data||[]).map(n=>'<article class="notification-row '+(n.read_at?'':'unread')+'">'+avatar(n.profiles||{})+'<div><strong>'+esc(n.profiles?.display_name||n.profiles?.username||'TeurChat')+'</strong><p>'+esc(({like:'curtiu sua publicação',comment:'comentou em sua publicação',follow:'começou a seguir você',message:'enviou uma mensagem'}[n.kind]||'interagiu com você'))+'</p><small>'+esc(new Date(n.created_at).toLocaleString('pt-BR'))+'</small></div></article>').join('');
+    $('#content').innerHTML='<section class="panel"><div class="section-heading"><div><p class="eyebrow">ATIVIDADE</p><h2>Notificações</h2></div><button class="btn secondary" data-action="notifications-read-all">Marcar lidas</button></div>'+(notificationRows||'<p class="muted">Você ainda não tem notificações.</p>')+'</section>';
     const unread=(data||[]).filter(n=>!n.read_at).map(n=>n.id);if(unread.length)await state.client.from('notifications').update({read_at:new Date().toISOString()}).in('id',unread);
   }
   async function openFollowList(userId,kind) {
@@ -567,7 +567,7 @@
       const {data:existing,error:r}=await state.client.from('follows').select('followed_id').eq('follower_id',state.session.user.id).eq('followed_id',id).maybeSingle();if(r)throw r;
       if(existing){const {error}=await state.client.from('follows').delete().eq('follower_id',state.session.user.id).eq('followed_id',id);if(error)throw error;notice('Você deixou de seguir @'+username+'.');}
       else{const {error}=await state.client.from('follows').insert({follower_id:state.session.user.id,followed_id:id});if(error)throw error;notice('Agora você segue @'+username+'.','success');}
-      await searchProfiles($('#peopleSearch')?.value||username);
+      if(state.page==='profile'&&state.viewedProfileId===id) await openUserProfile(id); else await searchProfiles($('#peopleSearch')?.value||username);
     }catch(e){notice('Não foi possível atualizar o seguimento: '+e.message,'error');}
   }
   async function handleAction(action, el) {
