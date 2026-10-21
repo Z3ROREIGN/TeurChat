@@ -27,7 +27,7 @@
     modal.dataset.kind = kind; modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
     const body = $('#modalBody');
     if (kind === 'auth') {
-      body.innerHTML = '<div class="modal-head"><div><p class="eyebrow">BEM-VINDO AO TEURCHAT</p><h2 id="authTitle">Entre na sua conta</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">×</button></div><div class="auth-switch"><button class="switch active" data-auth-mode="login">Entrar</button><button class="switch" data-auth-mode="signup">Criar conta</button></div><form id="authForm"><label>E-mail<input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="voce@email.com"></label><label>Senha<input name="password" type="password" minlength="6" autocomplete="current-password" required placeholder="Mínimo de 6 caracteres"></label><div id="signupFields" hidden><label>Nome de usuário<input name="username" autocomplete="username" minlength="3" maxlength="24" placeholder="seunome"></label><label>Como quer ser chamado?<input name="display_name" maxlength="40" placeholder="Seu nome"></label></div><button class="btn primary full" data-busy type="submit" id="authSubmit">Entrar</button><p class="muted small">Sua conta é protegida pelo Supabase do TeurChat.</p></form>';
+      body.innerHTML = '<div class="modal-head"><div><p class="eyebrow">BEM-VINDO AO TEURCHAT</p><h2 id="authTitle">Entre na sua conta</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">' + svgIcon('close') + '</button></div><div class="auth-switch"><button class="switch active" data-auth-mode="login">Entrar</button><button class="switch" data-auth-mode="signup">Criar conta</button></div><form id="authForm"><label>E-mail<input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="voce@email.com"></label><label>Senha<input name="password" type="password" minlength="6" autocomplete="current-password" required placeholder="Mínimo de 6 caracteres"></label><div id="signupFields" hidden><label>Nome de usuário<input name="username" autocomplete="username" minlength="3" maxlength="24" placeholder="seunome"></label><label>Como quer ser chamado?<input name="display_name" maxlength="40" placeholder="Seu nome"></label></div><button class="btn primary full" data-busy type="submit" id="authSubmit">Entrar</button><p class="muted small">Sua conta é protegida pelo Supabase do TeurChat.</p></form>';
     } else if (kind === 'compose') {
       if (!authRequired()) return;
       body.innerHTML = '<div class="modal-head"><div><p class="eyebrow">COMPARTILHE COM A COMUNIDADE</p><h2>Nova publicação</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">×</button></div><form id="postForm"><label>Foto ou vídeo<input name="media" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" required></label><p class="muted small">Até 100 MB por arquivo.</p><label>Título<input name="title" required maxlength="100" placeholder="Título da publicação"></label><label>Descrição<textarea name="body" required maxlength="1200" rows="4" placeholder="Descreva sua foto ou vídeo..."></textarea></label><div class="form-foot"><span class="muted small">Título até 100 caracteres</span><button class="btn primary" type="submit" data-busy>Publicar ↗</button></div></form>';
@@ -90,7 +90,7 @@
   }
   function updateAccountUI() {
     const p = state.profile, btn = $('#accountButton');
-    if (btn) btn.innerHTML = isSignedIn() ? '<span class="avatar tiny">' + (p?.avatar_url && /^https:\/\//i.test(p.avatar_url) ? '<img src="' + esc(p.avatar_url) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">' : esc(initials(p?.display_name || p?.username || 'U'))) + '</span><span class="account-label">' + esc(p?.display_name || p?.username || 'Minha conta') + '</span>' : '<span class="avatar tiny">↗</span><span class="account-label">Entrar</span>';
+    if (btn) btn.innerHTML = isSignedIn() ? '<span class="avatar tiny">' + (p?.avatar_url && /^https:\/\//i.test(p.avatar_url) ? '<img src="' + esc(p.avatar_url) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">' : esc(initials(p?.display_name || p?.username || 'U'))) + '</span><span class="account-label">' + esc(p?.display_name || p?.username || 'Minha conta') + '</span>' : '<span class="avatar tiny">' + svgIcon('user') + '</span><span class="account-label">Entrar</span>';
     $('#composeButton').disabled = false;
     $('#sessionHint').textContent = isSignedIn() ? '@' + (p?.username || 'usuario') : 'Entre para publicar, curtir e conversar.';
   }
@@ -119,7 +119,10 @@
       share: '<path d="M12 16V3m-5 5 5-5 5 5"/><path d="M5 13v7h14v-7"/>',
       'shield-check': '<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11z"/><path d="m9 12 2 2 4-4"/>',
       bug: '<path d="m8 9-2-2m10 2 2-2M9 4l1 2m5-2-1 2M4 13h4m8 0h4M5 19l3-2m8 0 3 2"/><rect x="7" y="7" width="10" height="14" rx="5"/><path d="M12 8v12"/>',
-      'badge-check': '<path d="m12 3 2.2 1.3 2.6-.1 1.1 2.4 2.2 1.4-.5 2.6.5 2.6-2.2 1.4-1.1 2.4-2.6-.1L12 18l-2.2-1.3-2.6.1-1.1-2.4-2.2-1.4.5-2.6-.5-2.6 2.2-1.4 1.1-2.4 2.6.1z"/><path d="m8.5 10.5 2.2 2.2 4.8-4.8"/>'
+      'badge-check': '<path d="m12 3 2.2 1.3 2.6-.1 1.1 2.4 2.2 1.4-.5 2.6.5 2.6-2.2 1.4-1.1 2.4-2.6-.1L12 18l-2.2-1.3-2.6.1-1.1-2.4-2.2-1.4.5-2.6-.5-2.6 2.2-1.4 1.1-2.4 2.6.1z"/><path d="m8.5 10.5 2.2 2.2 4.8-4.8"/>',
+      more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+      close: '<path d="m6 6 12 12M18 6 6 18"/>',
+      'external-link': '<path d="M14 3h7v7M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'
     };
     return '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (paths[name] || paths.user) + '</svg>';
   }
@@ -129,7 +132,7 @@
     const likes = p.likes?.length || 0, comments = p.comments?.length || 0;
     const type = p.media_type || (/\.(mp4|webm|mov)(\?|$)/i.test(p.media_url || '') ? 'video' : 'image');
     const media = p.media_url ? (type === 'video' ? '<video class="post-media" src="' + esc(p.media_url) + '" controls playsinline preload="metadata"></video>' : '<img class="post-media" src="' + esc(p.media_url) + '" alt="' + esc(p.title || 'Foto da publicação') + '" loading="lazy">') : '';
-    return '<article class="post-card" data-post="' + esc(p.id) + '"><div class="post-top"><button class="avatar-button" data-action="view-profile" data-id="' + esc(p.user_id) + '" aria-label="Ver perfil">' + avatar(profile) + '</button><button class="post-author profile-open" data-action="view-profile" data-id="' + esc(p.user_id) + '"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + ' · ' + esc(new Date(p.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})) + '</span></button><button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">•••</button></div>' + (p.title ? '<h3 class="post-title">' + esc(p.title) + '</h3>' : '') + media + '<div class="post-body">' + esc(p.body) + '</div><div class="post-actions"><button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '"><span>' + svgIcon('heart') + '</span> ' + likes + '</button><button class="action" data-action="comment" data-id="' + esc(p.id) + '"><span>' + svgIcon('comment') + '</span> ' + comments + ' comentários</button><button class="action" data-action="save" data-id="' + esc(p.id) + '"><span>' + svgIcon('bookmark') + '</span> Salvar</button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '"><span>' + svgIcon('share') + '</span> Compartilhar</button></div></article>';
+    return '<article class="post-card" data-post="' + esc(p.id) + '"><div class="post-top"><button class="avatar-button" data-action="view-profile" data-id="' + esc(p.user_id) + '" aria-label="Ver perfil">' + avatar(profile) + '</button><button class="post-author profile-open" data-action="view-profile" data-id="' + esc(p.user_id) + '"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + ' · ' + esc(new Date(p.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})) + '</span></button><button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">' + svgIcon('more') + '</button></div>' + (p.title ? '<h3 class="post-title">' + esc(p.title) + '</h3>' : '') + media + '<div class="post-body">' + esc(p.body) + '</div><div class="post-actions"><button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '"><span>' + svgIcon('heart') + '</span> ' + likes + '</button><button class="action" data-action="comment" data-id="' + esc(p.id) + '"><span>' + svgIcon('comment') + '</span> ' + comments + ' comentários</button><button class="action" data-action="save" data-id="' + esc(p.id) + '"><span>' + svgIcon('bookmark') + '</span> Salvar</button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '"><span>' + svgIcon('share') + '</span> Compartilhar</button></div></article>';
   }
   async function loadComments(postId) {
     const box = $('#commentList'); if (!box) return;
@@ -166,13 +169,13 @@
     try {
       state.posts = await fetchPosts();
       if (!state.posts.length) {
-        target.innerHTML = '<section class="empty-state"><div class="empty-mark">✳</div><h2>' + (state.page==='explore'?'Nada encontrado por enquanto':'Sua comunidade começa aqui') + '</h2><p>' + (state.page==='explore'?'Tente outra busca ou volte mais tarde.':'Ainda não há publicações para mostrar. Seja a primeira pessoa a compartilhar algo.') + '</p><button class="btn primary" data-action="compose">Criar publicação</button></section>';
+        target.innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('plus') + '</div><h2>' + (state.page==='explore'?'Nada encontrado por enquanto':'Sua comunidade começa aqui') + '</h2><p>' + (state.page==='explore'?'Tente outra busca ou volte mais tarde.':'Ainda não há publicações para mostrar. Seja a primeira pessoa a compartilhar algo.') + '</p><button class="btn primary" data-action="compose">Criar publicação</button></section>';
         return;
       }
       target.innerHTML = state.posts.map(renderPost).join('');
     } catch (e) {
       console.error(e);
-      target.innerHTML = '<section class="empty-state"><div class="empty-mark">!</div><h2>Não foi possível carregar o feed</h2><p>' + esc(e.message || 'Verifique a conexão e as permissões do banco.') + '</p><button class="btn primary" data-action="refresh">Tentar novamente</button></section>';
+      target.innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('shield-check') + '</div><h2>Não foi possível carregar o feed</h2><p>' + esc(e.message || 'Verifique a conexão e as permissões do banco.') + '</p><button class="btn primary" data-action="refresh">Tentar novamente</button></section>';
     }
   }
   async function renderPage() {
@@ -202,11 +205,11 @@
     if (state.page === 'admin') { if (!state.isAdmin) { notice('Esta área é exclusiva da administração.', 'error'); go('home'); return; } await renderAdminPage(); return; }
     if (state.page === 'messages') {
       if (!authRequired()) { go('home'); return; }
-      $('#content').innerHTML = '<section class="empty-state"><div class="empty-mark">✉</div><h2>Suas conversas</h2><p>Para começar, encontre uma pessoa em Explorar e abra o perfil dela. A área de mensagens depende das permissões de conversas do banco.</p><button class="btn primary" data-go="explore">Encontrar pessoas</button></section>'; return;
+      $('#content').innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('message') + '</div><h2>Suas conversas</h2><p>Para começar, encontre uma pessoa em Explorar e abra o perfil dela. A área de mensagens depende das permissões de conversas do banco.</p><button class="btn primary" data-go="explore">Encontrar pessoas</button></section>'; return;
     }
     if (state.page === 'notifications') {
       if (!authRequired()) { go('home'); return; }
-      $('#content').innerHTML = '<section class="empty-state"><div class="empty-mark">♧</div><h2>Notificações</h2><p>Você verá novidades da sua conta aqui quando houver notificações disponíveis.</p><button class="btn secondary" data-action="refresh">Atualizar</button></section>'; return;
+      $('#content').innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('bell') + '</div><h2>Notificações</h2><p>Você verá novidades da sua conta aqui quando houver notificações disponíveis.</p><button class="btn secondary" data-action="refresh">Atualizar</button></section>'; return;
     }
   }
   async function renderAdminPage() {
@@ -221,7 +224,7 @@
     const out=$('#adminUsers'); if(!out)return;
     const term=($('#adminSearch')?.value||'').trim().toLowerCase().replace(/^@/,'');
     const users=state.adminUsers.filter(u=>String(u.username||'').toLowerCase().includes(term)||String(u.display_name||'').toLowerCase().includes(term));
-    out.innerHTML=users.length?users.map(u=>'<article class="admin-user"><div class="admin-user-main"><span class="avatar">'+esc(initials(u.display_name||u.username))+'</span><div class="admin-user-copy"><strong>'+esc(u.display_name||u.username)+'</strong><span>@'+esc(u.username)+'</span><div class="profile-badges">'+renderBadges(u.badges||[])+'</div>'+(u.is_banned?'<p class="ban-status">'+svgIcon('shield-check')+' Banido · '+esc(u.ban_reason||'Sem motivo informado')+'</p>':'<p class="muted small">Conta ativa</p>')+'</div></div><div class="admin-user-actions"><button class="btn secondary" data-action="admin-badge" data-id="'+esc(u.id)+'" data-username="'+esc(u.username)+'">'+svgIcon('badge-check')+' Emblema</button>'+(u.is_banned?'<button class="btn secondary" data-action="admin-unban" data-id="'+esc(u.id)+'" data-username="'+esc(u.username)+'">'+svgIcon('user')+' Desbanir</button>':'<button class="btn danger" data-action="admin-ban" data-id="'+esc(u.id)+'" data-username="'+esc(u.username)+'">'+svgIcon('shield-check')+' Banir</button>')+'</div></article>').join(''):'<div class="empty-state"><h3>Nenhum usuário encontrado</h3><p>Tente outro nome ou @usuário.</p></div>';
+    out.innerHTML=users.length?users.map(u=>'<article class="admin-user"><div class="admin-user-main"><span class="avatar">'+esc(initials(u.display_name||u.username))+'</span><div class="admin-user-copy"><strong>'+esc(u.display_name||u.username)+'</strong><span>@'+esc(u.username)+'</span><div class="profile-badges">'+renderBadges(u.badges||[])+'</div>'+(u.is_banned?'<p class="ban-status">'+svgIcon('shield-check')+' Banido · '+esc(u.ban_reason||'Sem motivo informado')+'</p>':'<p class="muted small">Conta ativa</p>')+'</div></div><div class="admin-user-actions"><button class="btn secondary" data-action="admin-badge" data-id="'+esc(u.id)+'" data-username="'+esc(u.username)+'">'+svgIcon('badge-check')+' Emblema</button><button class="btn secondary" data-action="admin-remove-badge" data-id="'+esc(u.id)+'" data-username="'+esc(u.username)+'">'+svgIcon('close')+' Remover emblema</button>'+(u.is_banned?'<button class="btn secondary" data-action="admin-unban" data-id="'+esc(u.id)+'" data-username="'+esc(u.username)+'">'+svgIcon('user')+' Desbanir</button>':'<button class="btn danger" data-action="admin-ban" data-id="'+esc(u.id)+'" data-username="'+esc(u.username)+'">'+svgIcon('shield-check')+' Banir</button>')+'</div></article>').join(''):'<div class="empty-state"><h3>Nenhum usuário encontrado</h3><p>Tente outro nome ou @usuário.</p></div>';
   }
   async function adminBadge(userId, username) {
     if(!state.isAdmin) throw new Error('Acesso restrito à administração.');
@@ -232,6 +235,17 @@
     const {error}=await state.client.rpc('admin_set_badge',{target_user:userId,target_badge:clean,should_grant:true});
     if(error)throw error;
     notice('Emblema @'+clean+' atribuído a @'+username+'.','success');
+    await renderAdminPage();
+  }
+  async function adminRemoveBadge(userId, username) {
+    if(!state.isAdmin)throw new Error('Acesso restrito à administração.');
+    const key=prompt('Qual emblema deseja remover de @'+username+'? Informe a chave do emblema.');
+    if(key===null)return;
+    const clean=key.trim().toLowerCase().replace(/\s+/g,'_');
+    if(!/^[a-z0-9_]{2,32}$/.test(clean))throw new Error('Chave de emblema inválida.');
+    const {error}=await state.client.rpc('admin_set_badge',{target_user:userId,target_badge:clean,should_grant:false});
+    if(error)throw error;
+    notice('Emblema removido de @'+username+'.','success');
     await renderAdminPage();
   }
   async function adminBan(userId, username, shouldBan) {
@@ -409,6 +423,7 @@
     if(action==='admin-panel') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); go('admin'); return; }
     if(action==='admin-refresh') return renderAdminPage();
     if(action==='admin-badge') return adminBadge(id,el.dataset.username);
+    if(action==='admin-remove-badge') return adminRemoveBadge(id,el.dataset.username);
     if(action==='admin-ban') return adminBan(id,el.dataset.username,true);
     if(action==='admin-unban') return adminBan(id,el.dataset.username,false);
     if(action==='compose') return openModal('compose');
