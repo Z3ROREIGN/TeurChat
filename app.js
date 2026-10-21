@@ -53,7 +53,7 @@
   async function loadProfile() {
     const user = state.session?.user;
     if (!user) { state.profile = null; state.badges = []; state.isAdmin = false; const adminNav = $('#adminNav'); if (adminNav) adminNav.hidden = true; return; }
-    const columns = 'id,username,display_name,bio,avatar_url';
+    const columns = 'id,username,display_name,bio,avatar_url,banner_url';
     let result = await state.client.from('profiles').select(columns).eq('id', user.id).maybeSingle();
     if (result.error) throw result.error;
     let profile = result.data;
@@ -141,7 +141,7 @@
     box.innerHTML = data?.length ? data.map(x => '<article class="comment-row">' + avatar(x.profiles || {}) + '<div><strong>' + esc(x.profiles?.display_name || x.profiles?.username || 'Usuário') + ' <span>@' + esc(x.profiles?.username || 'usuario') + '</span></strong><p>' + esc(x.body) + '</p><small>' + esc(new Date(x.created_at).toLocaleString('pt-BR')) + '</small>' + (state.isAdmin ? '<button class="action" data-action="admin-delete-comment" data-id="' + esc(x.id) + '">' + svgIcon('close') + ' Remover</button>' : '') + '</div></article>').join('') : '<p class="muted">Ainda não há comentários. Seja a primeira pessoa a comentar.</p>';
   }
   async function openUserProfile(userId) {
-    const {data:p,error} = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url').eq('id',userId).single();
+    const {data:p,error} = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url,banner_url').eq('id',userId).single();
     if (error) throw error;
     const {data:userBadgeRows} = await state.client.from('profile_badges').select('badge_key').eq('user_id',userId);
     const publicBadges=(userBadgeRows||[]).map(row=>row.badge_key);
@@ -529,7 +529,7 @@
     if (!authRequired()) return;
     try { if (!state.profile) await loadProfile(); } catch (e) { notice('Não foi possível carregar seu perfil: ' + e.message, 'error'); return; }
     const p = state.profile || {};
-    $('#modalBody').innerHTML = '<div class="modal-head"><div><p class="eyebrow">SUA CONTA</p><h2>Editar perfil</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">' + svgIcon('close') + '</button></div><form id="profileForm"><label>Nome exibido<input name="display_name" required maxlength="40" value="' + esc(p.display_name || '') + '"></label><label>Nome de usuário<input name="username" required minlength="3" maxlength="24" pattern="[a-zA-Z0-9_]{3,24}" value="' + esc(p.username || '') + '"><span class="muted small">3 a 24 letras, números ou _.</span></label><label>Biografia<textarea name="bio" maxlength="180" rows="3" placeholder="Conte um pouco sobre você…">' + esc(p.bio || '') + '</textarea></label><label>URL da foto de perfil<input name="avatar_url" type="url" maxlength="500" placeholder="https://…" value="' + esc(p.avatar_url || '') + '"></label><p class="muted small">Seu e-mail não aparece no perfil público.</p><button class="btn primary full" type="submit" data-busy>Salvar alterações</button></form>';
+    $('#modalBody').innerHTML = '<div class="modal-head"><div><p class="eyebrow">SUA CONTA</p><h2>Personalizar perfil</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">' + svgIcon('close') + '</button></div><form id="profileForm"><div class="banner-editor-preview" style="background-image:' + (p.banner_url ? 'url(&quot;' + esc(p.banner_url) + '&quot;)' : 'linear-gradient(120deg,#343943,#111317)') + '"></div><label>Banner do perfil<input name="banner_file" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p class="muted small">Imagem de até 10 MB, visível no topo do seu perfil.</p><label class="inline-check"><input name="remove_banner" type="checkbox"> Remover banner atual</label><label>Nome exibido<input name="display_name" required maxlength="40" value="' + esc(p.display_name || '') + '"></label><label>Nome de usuário<input name="username" required minlength="3" maxlength="24" pattern="[a-zA-Z0-9_]{3,24}" value="' + esc(p.username || '') + '"><span class="muted small">3 a 24 letras, números ou _.</span></label><label>Biografia<textarea name="bio" maxlength="180" rows="3" placeholder="Conte um pouco sobre você…">' + esc(p.bio || '') + '</textarea><span class="muted small">Conte seus interesses para as pessoas conhecerem você.</span></label><label>URL da foto de perfil<input name="avatar_url" type="url" maxlength="500" placeholder="https://…" value="' + esc(p.avatar_url || '') + '"></label><p class="muted small">Seu e-mail não aparece no perfil público.</p><button class="btn primary full" type="submit" data-busy>Salvar personalização</button></form>';
     $('#modal').dataset.kind = 'profile';
     $('#modal').classList.add('open');
     $('#modal').setAttribute('aria-hidden','false');
@@ -540,13 +540,27 @@
     const username = String(fd.get('username') || '').trim().toLowerCase().replace(/^@/,'');
     const bio = String(fd.get('bio') || '').trim().slice(0,180);
     const avatar_url = String(fd.get('avatar_url') || '').trim();
+    const bannerFile = fd.get('banner_file');
+    const removeBanner = fd.get('remove_banner') === 'on';
+    let banner_url = state.profile?.banner_url || null;
     if (!display_name) { notice('Informe seu nome de exibição.', 'error'); return; }
     if (!/^[a-z0-9_]{3,24}$/.test(username)) { notice('O nome de usuário deve ter 3 a 24 caracteres: letras, números ou _.', 'error'); return; }
     if (avatar_url && !/^https:\/\//i.test(avatar_url)) { notice('A foto precisa usar um endereço HTTPS.', 'error'); return; }
+    if (bannerFile instanceof File && bannerFile.size > 10 * 1024 * 1024) { notice('O banner precisa ter no máximo 10 MB.', 'error'); return; }
+    if (bannerFile instanceof File && bannerFile.size && !['image/jpeg','image/png','image/webp','image/gif'].includes(bannerFile.type)) { notice('Use JPG, PNG, WEBP ou GIF.', 'error'); return; }
     setBusy(true);
     try {
-      const updates = {display_name, username, bio, avatar_url: avatar_url || null};
-      const {data,error} = await state.client.from('profiles').update(updates).eq('id',state.session.user.id).select('id,username,display_name,bio,avatar_url').single();
+      if (removeBanner) banner_url = null;
+      if (bannerFile instanceof File && bannerFile.size) {
+        const ext = ({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'})[bannerFile.type];
+        const path = state.session.user.id + '/' + Date.now() + '.' + ext;
+        const {error:uploadError} = await state.client.storage.from('profile-banners').upload(path,bannerFile,{upsert:true,contentType:bannerFile.type,cacheControl:'3600'});
+        if (uploadError) throw new Error('Falha ao enviar o banner: ' + uploadError.message);
+        const {data:publicData} = state.client.storage.from('profile-banners').getPublicUrl(path);
+        banner_url = publicData.publicUrl;
+      }
+      const updates = {display_name, username, bio, avatar_url: avatar_url || null, banner_url};
+      const {data,error} = await state.client.from('profiles').update(updates).eq('id',state.session.user.id).select('id,username,display_name,bio,avatar_url,banner_url').single();
       if (error) {
         if (error.code === '23505') throw new Error('Esse nome de usuário já está em uso. Escolha outro.');
         throw error;
