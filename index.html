@@ -326,6 +326,14 @@ input:focus,textarea:focus,select:focus{border-color:#777982!important;box-shado
  .modal-head{margin-bottom:12px}
 }
 
+
+/* Corrige o avatar do perfil que ficava cortado pela metade */
+.profile-card{overflow:visible!important}
+.profile-card>.profile-info{position:relative;z-index:1;overflow:visible}
+.profile-info>.avatar{position:relative;z-index:3;display:grid;place-items:center;box-sizing:border-box;flex:0 0 60px;width:60px;height:60px;min-width:60px;min-height:60px;margin-top:-29px;border:3px solid #101114;border-radius:50%;overflow:hidden;isolation:isolate}
+.profile-info>.avatar img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
+@media(max-width:680px){.profile-info>.avatar{flex-basis:60px;width:60px;height:60px;min-width:60px;min-height:60px;margin-top:-29px}}
+
 </style>
 </head>
 <body>
@@ -369,8 +377,8 @@ input:focus,textarea:focus,select:focus{border-color:#777982!important;box-shado
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=42"></script>
-<script src="/app.js?v=42"></script>
+<script src="/config.js?v=43"></script>
+<script src="/app.js?v=43"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
