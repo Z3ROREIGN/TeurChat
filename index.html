@@ -334,6 +334,40 @@ input:focus,textarea:focus,select:focus{border-color:#777982!important;box-shado
 .profile-info>.avatar img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
 @media(max-width:680px){.profile-info>.avatar{flex-basis:60px;width:60px;height:60px;min-width:60px;min-height:60px;margin-top:-29px}}
 
+
+/* Feed vertical de vídeos inspirado no formato Reels/TikTok, mantendo a identidade TeurChat */
+#content:has(.reel-card){display:flex;flex-direction:column;align-items:center;gap:18px;scroll-snap-type:y proximity}
+.reel-card{position:relative;width:min(100%,560px);height:min(78dvh,820px);min-height:540px;padding:0!important;overflow:hidden;border-radius:18px;background:#050506;isolation:isolate;scroll-snap-align:start;border-color:#292d34}
+.reel-video-wrap{position:absolute;inset:0;background:#050506;display:grid;place-items:center}
+.reel-media{width:100%;height:100%;max-height:none!important;margin:0!important;border:0!important;border-radius:0!important;object-fit:contain;background:#050506}
+.reel-shade{position:absolute;inset:35% 0 0;background:linear-gradient(transparent,rgba(0,0,0,.78));pointer-events:none}
+.reel-top{position:absolute;z-index:2;top:15px;left:15px;right:15px;display:flex;align-items:center;gap:10px}
+.reel-top .avatar-button .avatar{border:2px solid #fff;width:42px;height:42px}
+.reel-top .post-author{color:#fff;text-shadow:0 1px 5px #000}
+.reel-top .post-author span{color:#eee}
+.reel-top .post-more{margin-left:auto;background:#08090b99;border-color:#ffffff35}
+.reel-caption{position:absolute;z-index:2;left:17px;right:82px;bottom:18px;color:#fff;text-shadow:0 1px 5px #000}
+.reel-caption .post-title{font-size:17px;margin:0 0 6px}
+.reel-caption p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.reel-audio{display:block;margin-top:11px;font-size:11px;font-weight:650}
+.reel-actions{position:absolute;z-index:3;right:10px;bottom:20px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.reel-actions .action{display:flex;flex-direction:column;gap:4px;min-width:48px;padding:6px 2px;color:#fff;border:0;background:transparent;text-shadow:0 1px 5px #000}
+.reel-actions .action span .svg-icon{width:25px;height:25px;filter:drop-shadow(0 1px 3px #000)}
+.reel-actions .action b{font-size:10px;font-weight:750}
+.reel-actions .action.selected{color:#fff}
+@media(min-width:1021px){#content:has(.reel-card){padding-top:16px}.reel-card{height:min(76dvh,780px);min-height:540px}}
+@media(max-width:680px){
+ .topbar{position:sticky;padding:12px 15px}
+ .topbar h1{font-size:17px}
+ #content:has(.reel-card){padding:8px 8px calc(94px + env(safe-area-inset-bottom));gap:10px}
+ .reel-card{width:100%;height:calc(100dvh - 146px - env(safe-area-inset-bottom));min-height:470px;max-height:820px;border-radius:13px}
+ .reel-caption{left:13px;right:69px;bottom:14px}
+ .reel-actions{right:5px;bottom:15px;gap:9px}
+ .reel-actions .action span .svg-icon{width:23px;height:23px}
+ .feed-filters{position:sticky;top:58px;z-index:4;justify-content:center;background:#08090bf2;backdrop-filter:blur(12px)}
+ .feed-filters .filter{padding:7px 14px}
+}
+
 </style>
 </head>
 <body>
@@ -377,8 +411,8 @@ input:focus,textarea:focus,select:focus{border-color:#777982!important;box-shado
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=43"></script>
-<script src="/app.js?v=43"></script>
+<script src="/config.js?v=44"></script>
+<script src="/app.js?v=44"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
