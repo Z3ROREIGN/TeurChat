@@ -2,7 +2,7 @@
   'use strict';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false };
+  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [] };
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const initials = v => (String(v || 'U').trim()[0] || 'U').toUpperCase();
   const notice = (msg, type = '') => {
@@ -51,23 +51,64 @@
     updateAccountUI();
   }
   async function loadProfile() {
-    if (!state.session?.user) return;
-    const { data, error } = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url').eq('id',state.session.user.id).maybeSingle();
+    if (!state.session?.user) { state.profile = null; state.badges = []; return; }
+    const user = state.session.user;
+    let { data, error } = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url').eq('id',user.id).maybeSingle();
     if (error) throw error;
+    if (!data) {
+      const meta = user.user_metadata || {};
+      const base = String(meta.username || user.id.replace(/-/g,'').slice(0,12)).toLowerCase().replace(/[^a-z0-9_]/g,'').slice(0,24) || 'usuario';
+      const username = base.length >= 3 ? base : ('user_' + base).slice(0,24);
+      const display_name = String(meta.display_name || username).trim().slice(0,40) || username;
+      const created = await state.client.from('profiles').upsert({id:user.id,username,display_name,bio:''},{onConflict:'id'}).select('id,username,display_name,bio,avatar_url').single();
+      if (created.error) throw created.error;
+      data = created.data;
+    }
     state.profile = data;
+    const result = await state.client.from('profile_badges').select('badge_key').eq('user_id',user.id);
+    if (result.error && result.error.code !== '42P01') throw result.error;
+    state.badges = (result.data || []).map(x => x.badge_key);
   }
   function updateAccountUI() {
     const p = state.profile, btn = $('#accountButton');
-    if (btn) btn.innerHTML = isSignedIn() ? '<span class="avatar tiny">' + esc(initials(p?.display_name || p?.username || state.session.user.email)) + '</span><span class="account-label">' + esc(p?.display_name || p?.username || 'Minha conta') + '</span>' : '<span class="avatar tiny">↗</span><span class="account-label">Entrar</span>';
+    if (btn) btn.innerHTML = isSignedIn() ? '<span class="avatar tiny">' + esc(initials(p?.display_name || p?.username || 'U')) + '</span><span class="account-label">' + esc(p?.display_name || p?.username || 'Minha conta') + '</span>' : '<span class="avatar tiny">↗</span><span class="account-label">Entrar</span>';
     $('#composeButton').disabled = false;
     $('#sessionHint').textContent = isSignedIn() ? '@' + (p?.username || 'usuario') : 'Entre para publicar, curtir e conversar.';
   }
   const avatar = p => '<span class="avatar">' + esc(initials(p?.display_name || p?.username || 'U')) + '</span>';
+  const badgeMeta = {
+    admin: { label: 'Administrador', icon: 'shield-check' },
+    bug_hunter: { label: 'Caçador de Bugs', icon: 'bug' },
+    verified: { label: 'Verificado', icon: 'badge-check' }
+  };
+  function renderBadges(keys) {
+    return (keys || []).filter(k => badgeMeta[k]).map(k => '<span class="profile-badge badge-' + esc(k) + '" title="' + esc(badgeMeta[k].label) + '">' + svgIcon(badgeMeta[k].icon) + '<span>' + esc(badgeMeta[k].label) + '</span></span>').join('');
+  }
+  function svgIcon(name) {
+    const paths = {
+      home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+      search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+      users: '<path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+      message: '<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 21l1.9-5.5a9 9 0 0 1-.9-4A8.5 8.5 0 0 1 12.5 3H13a8.5 8.5 0 0 1 8 8z"/>',
+      bookmark: '<path d="M6 4h12v17l-6-4-6 4z"/>',
+      bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
+      user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+      plus: '<path d="M12 5v14M5 12h14"/>',
+      refresh: '<path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 12.5-3"/>',
+      heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8z"/>',
+      comment: '<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 21l1.9-5.5a9 9 0 0 1-.9-4A8.5 8.5 0 0 1 12.5 3H13a8.5 8.5 0 0 1 8 8z"/>',
+      share: '<path d="M12 16V3m-5 5 5-5 5 5"/><path d="M5 13v7h14v-7"/>',
+      'shield-check': '<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11z"/><path d="m9 12 2 2 4-4"/>',
+      bug: '<path d="m8 9-2-2m10 2 2-2M9 4l1 2m5-2-1 2M4 13h4m8 0h4M5 19l3-2m8 0 3 2"/><rect x="7" y="7" width="10" height="14" rx="5"/><path d="M12 8v12"/>',
+      'badge-check': '<path d="m12 3 2.2 1.3 2.6-.1 1.1 2.4 2.2 1.4-.5 2.6.5 2.6-2.2 1.4-1.1 2.4-2.6-.1L12 18l-2.2-1.3-2.6.1-1.1-2.4-2.2-1.4.5-2.6-.5-2.6 2.2-1.4 1.1-2.4 2.6.1z"/><path d="m8.5 10.5 2.2 2.2 4.8-4.8"/>'
+    };
+    return '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (paths[name] || paths.user) + '</svg>';
+  }
   function renderPost(p) {
     const profile = p.profiles || {};
     const liked = Array.isArray(p.likes) && p.likes.some(x => x.user_id === state.session?.user?.id);
     const likes = p.likes?.length || 0, comments = p.comments?.length || 0;
-    return '<article class="post-card" data-post="' + esc(p.id) + '"><div class="post-top">' + avatar(profile) + '<div class="post-author"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + ' · ' + esc(new Date(p.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})) + '</span></div><button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">•••</button></div><div class="post-body">' + esc(p.body) + '</div>' + (p.media_url ? '<a class="media-link" href="' + esc(p.media_url) + '" target="_blank" rel="noopener">Abrir mídia ↗</a>' : '') + '<div class="post-actions"><button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '"><span>' + (liked?'♥':'♡') + '</span> ' + likes + '</button><button class="action" data-action="comment" data-id="' + esc(p.id) + '"><span>◯</span> ' + comments + '</button><button class="action" data-action="save" data-id="' + esc(p.id) + '"><span>◇</span> Salvar</button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '"><span>↗</span> Compartilhar</button></div></article>';
+    return '<article class="post-card" data-post="' + esc(p.id) + '"><div class="post-top">' + avatar(profile) + '<div class="post-author"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + ' · ' + esc(new Date(p.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})) + '</span></div><button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">•••</button></div><div class="post-body">' + esc(p.body) + '</div>' + (p.media_url ? '<a class="media-link" href="' + esc(p.media_url) + '" target="_blank" rel="noopener">Abrir mídia ↗</a>' : '') + '<div class="post-actions"><button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '"><span>' + svgIcon('heart') + '</span> ' + likes + '</button><button class="action" data-action="comment" data-id="' + esc(p.id) + '"><span>' + svgIcon('comment') + '</span> ' + comments + '</button><button class="action" data-action="save" data-id="' + esc(p.id) + '"><span>' + svgIcon('bookmark') + '</span> Salvar</button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '"><span>' + svgIcon('share') + '</span> Compartilhar</button></div></article>';
   }
   async function fetchPosts() {
     let query = state.client.from('posts').select('id,user_id,body,media_url,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').order('created_at',{ascending:false}).limit(40);
@@ -118,7 +159,7 @@
     if (state.page === 'profile') {
       if (!authRequired()) { go('home'); return; }
       const p = state.profile || {};
-      $('#content').innerHTML = '<section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || 'Meu perfil') + '</h2><p>@' + esc(p.username || 'usuario') + '</p><p>' + esc(p.bio || 'Adicione uma descrição ao seu perfil.') + '</p><button class="btn secondary" data-action="edit-profile">Editar perfil</button><button class="btn secondary" data-action="signout">Sair da conta</button></div></section><section class="panel"><h3>Minhas publicações</h3><div id="myPosts"><div class="loading">Carregando…</div></div></section>';
+      $('#content').innerHTML = '<section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || 'Meu perfil') + '</h2><p>@' + esc(p.username || 'usuario') + '</p><div class="profile-badges">' + renderBadges(state.badges) + '</div><p>' + esc(p.bio || 'Adicione uma descrição ao seu perfil.') + '</p><button class="btn secondary" data-action="edit-profile">Editar perfil</button><button class="btn secondary" data-action="signout">Sair da conta</button></div></section><section class="panel"><h3>Minhas publicações</h3><div id="myPosts"><div class="loading">Carregando…</div></div></section>';
       const {data,error}=await state.client.from('posts').select('id,user_id,body,media_url,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').eq('user_id',state.session.user.id).order('created_at',{ascending:false}).limit(30);
       if(error) throw error; $('#myPosts').innerHTML=data?.length?data.map(renderPost).join(''):'<p class="muted">Você ainda não publicou nada.</p>'; return;
     }
@@ -198,7 +239,7 @@
     if(!authRequired()) return;
     const p=state.profile||{};
     $('#modalBody').innerHTML='<div class="modal-head"><div><p class="eyebrow">SUA CONTA</p><h2>Editar perfil</h2></div><button class="icon-btn" data-action="close-modal">×</button></div><form id="profileForm"><label>Nome exibido<input name="display_name" required maxlength="40" value="'+esc(p.display_name||'')+'"></label><label>Bio<textarea name="bio" maxlength="180" rows="3">'+esc(p.bio||'')+'</textarea></label><button class="btn primary full" type="submit" data-busy>Salvar alterações</button></form>';
-    $('#modal').dataset.kind='profile';
+    $('#modal').dataset.kind='profile'; $('#modal').classList.add('open'); $('#modal').setAttribute('aria-hidden','false');
   }
   async function submitProfile(form) {
     const fd=new FormData(form), updates={display_name:String(fd.get('display_name')||'').trim(),bio:String(fd.get('bio')||'').trim()};
