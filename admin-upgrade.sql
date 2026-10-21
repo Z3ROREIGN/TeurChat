@@ -141,3 +141,27 @@ end;
 $$;
 revoke all on function public.start_conversation(text) from public,anon;
 grant execute on function public.start_conversation(text) to authenticated;
+
+create or replace function public.admin_delete_post(target_post uuid)
+returns void language plpgsql security definer set search_path=''
+as $$
+begin
+  if auth.uid() is null or not public.teurchat_is_admin() then raise exception 'Acesso restrito à administração.'; end if;
+  delete from public.posts where id=target_post;
+  if not found then raise exception 'Publicação não encontrada.'; end if;
+end;
+$$;
+revoke all on function public.admin_delete_post(uuid) from public,anon;
+grant execute on function public.admin_delete_post(uuid) to authenticated;
+
+create or replace function public.admin_delete_comment(target_comment uuid)
+returns void language plpgsql security definer set search_path=''
+as $$
+begin
+  if auth.uid() is null or not public.teurchat_is_admin() then raise exception 'Acesso restrito à administração.'; end if;
+  delete from public.comments where id=target_comment;
+  if not found then raise exception 'Comentário não encontrado.'; end if;
+end;
+$$;
+revoke all on function public.admin_delete_comment(uuid) from public,anon;
+grant execute on function public.admin_delete_comment(uuid) to authenticated;
