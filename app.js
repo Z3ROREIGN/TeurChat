@@ -98,7 +98,7 @@
   const badgeMeta = {
     admin: { label: 'Administrador', icon: 'shield-check' },
     bug_hunter: { label: 'Caçador de Bugs', icon: 'bug' },
-    verified: { label: 'Verificado', icon: 'badge-check' }
+    verified: { label: 'Verificado', icon: 'badge-check' }, partner: { label: 'Parceiro', icon: 'handshake' }
   };
   function renderBadges(keys) {
     return (keys || []).map(k => { const meta = badgeMeta[k] || {label:String(k).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),icon:'badge-check'}; return '<span class="profile-badge badge-' + esc(k) + '" title="' + esc(meta.label) + '">' + svgIcon(meta.icon) + '<span>' + esc(meta.label) + '</span></span>'; }).join('');
@@ -122,7 +122,7 @@
       'badge-check': '<path d="m12 3 2.2 1.3 2.6-.1 1.1 2.4 2.2 1.4-.5 2.6.5 2.6-2.2 1.4-1.1 2.4-2.6-.1L12 18l-2.2-1.3-2.6.1-1.1-2.4-2.2-1.4.5-2.6-.5-2.6 2.2-1.4 1.1-2.4 2.6.1z"/><path d="m8.5 10.5 2.2 2.2 4.8-4.8"/>',
       more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
       close: '<path d="m6 6 12 12M18 6 6 18"/>',
-      'external-link': '<path d="M14 3h7v7M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'
+      'external-link': '<path d="M14 3h7v7M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>', 'handshake': '<path d="m8 12 2 2a2 2 0 0 0 3 0l3-3M4 9l4-4 4 2 3-1 5 4-7 8a2 2 0 0 1-3 0l-3-3-3-3"/>'
     };
     return '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (paths[name] || paths.user) + '</svg>';
   }
@@ -247,10 +247,10 @@
   }
   async function adminBadge(userId, username) {
     if(!state.isAdmin) throw new Error('Acesso restrito à administração.');
-    const key=prompt('Nome do emblema (ex.: criador, parceiro, vip). Use letras minúsculas, números ou _.');
-    if(key===null)return;
-    const clean=key.trim().toLowerCase().replace(/\s+/g,'_');
-    if(!/^[a-z0-9_]{2,32}$/.test(clean))throw new Error('Use 2 a 32 caracteres: letras minúsculas, números ou _.');
+    const choice=prompt('Emblemas oficiais:\\n1 Administrador\\n2 Caçador de Bugs\\n3 Verificado\\n4 Parceiro');
+    if(choice===null)return;
+    const clean=({'1':'admin','2':'bug_hunter','3':'verified','4':'partner'})[choice.trim()];
+    if(!clean)throw new Error('Escolha um emblema oficial.');
     const {error}=await state.client.rpc('admin_set_badge',{target_user:userId,target_badge:clean,should_grant:true});
     if(error)throw error;
     notice('Emblema @'+clean+' atribuído a @'+username+'.','success');
@@ -258,10 +258,10 @@
   }
   async function adminRemoveBadge(userId, username) {
     if(!state.isAdmin)throw new Error('Acesso restrito à administração.');
-    const key=prompt('Qual emblema deseja remover de @'+username+'? Informe a chave do emblema.');
+    const key=prompt('Emblemas oficiais:\\n1 Administrador\\n2 Caçador de Bugs\\n3 Verificado\\n4 Parceiro');
     if(key===null)return;
-    const clean=key.trim().toLowerCase().replace(/\s+/g,'_');
-    if(!/^[a-z0-9_]{2,32}$/.test(clean))throw new Error('Chave de emblema inválida.');
+    const clean=({'1':'admin','2':'bug_hunter','3':'verified','4':'partner'})[key.trim()];
+    if(!clean)throw new Error('Escolha um emblema oficial.');
     const {error}=await state.client.rpc('admin_set_badge',{target_user:userId,target_badge:clean,should_grant:false});
     if(error)throw error;
     notice('Emblema removido de @'+username+'.','success');
