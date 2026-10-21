@@ -275,6 +275,7 @@ drop policy if exists "Users join themselves to conversations" on public.convers
 
 
 -- Extra social features: media metadata, saved posts, notifications and storage.
+alter table public.posts add column if not exists title text not null default '' check (char_length(title) <= 100);
 alter table public.posts add column if not exists media_type text;
 alter table public.posts add column if not exists edited_at timestamptz;
 alter table public.posts add column if not exists hashtags text[] not null default '{}';
