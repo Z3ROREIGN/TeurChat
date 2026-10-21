@@ -59,7 +59,7 @@
   function updateAccountUI() {
     const p = state.profile, btn = $('#accountButton');
     if (btn) btn.innerHTML = isSignedIn() ? '<span class="avatar tiny">' + esc(initials(p?.display_name || p?.username || state.session.user.email)) + '</span><span class="account-label">' + esc(p?.display_name || p?.username || 'Minha conta') + '</span>' : '<span class="avatar tiny">↗</span><span class="account-label">Entrar</span>';
-    $('#composeButton').disabled = !isSignedIn();
+    $('#composeButton').disabled = false;
     $('#sessionHint').textContent = isSignedIn() ? '@' + (p?.username || 'usuario') : 'Entre para publicar, curtir e conversar.';
   }
   const avatar = p => '<span class="avatar">' + esc(initials(p?.display_name || p?.username || 'U')) + '</span>';
