@@ -2,7 +2,7 @@
   'use strict';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null };
+  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null, isAdmin: false, adminUsers: [] };
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const initials = v => (String(v || 'U').trim()[0] || 'U').toUpperCase();
   const notice = (msg, type = '') => {
@@ -15,10 +15,11 @@
   const authRequired = () => { if (!isSignedIn()) { openModal('auth'); notice('Entre na sua conta para continuar.'); return false; } return true; };
   const setBusy = (yes) => { state.busy = yes; $$('[data-busy]').forEach(b => { b.disabled = yes; }); };
   function go(page) {
-    const allowed = ['home','explore','saved','messages','profile','notifications'];
+    const allowed = ['home','explore','saved','messages','profile','notifications','admin'];
     state.page = allowed.includes(page) ? page : 'home';
     $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.go === state.page));
-    $('#pageTitle').textContent = ({home:'Início',explore:'Explorar',saved:'Salvos',messages:'Mensagens',profile:'Meu perfil',notifications:'Notificações'})[state.page];
+    $('#pageTitle').textContent = ({home:'Início',explore:'Explorar',saved:'Salvos',messages:'Mensagens',profile:'Meu perfil',notifications:'Notificações',admin:'Administração'})[state.page];
+    const adminNav = $('#adminNav'); if (adminNav) adminNav.hidden = !state.isAdmin;
     renderPage().catch(e => { console.error(e); notice('Não foi possível abrir esta área: ' + (e.message || 'erro')); });
   }
   function openModal(kind, extra = {}) {
@@ -75,6 +76,9 @@
       }
     }
     state.profile = profile;
+    const adminCheck = await state.client.rpc('teurchat_is_admin');
+    state.isAdmin = !adminCheck.error && adminCheck.data === true;
+    const adminNav = $('#adminNav'); if (adminNav) adminNav.hidden = !state.isAdmin;
     try {
       const badges = await state.client.from('profile_badges').select('badge_key').eq('user_id',user.id);
       if (badges.error && badges.error.code !== '42P01') throw badges.error;
@@ -97,7 +101,7 @@
     verified: { label: 'Verificado', icon: 'badge-check' }
   };
   function renderBadges(keys) {
-    return (keys || []).filter(k => badgeMeta[k]).map(k => '<span class="profile-badge badge-' + esc(k) + '" title="' + esc(badgeMeta[k].label) + '">' + svgIcon(badgeMeta[k].icon) + '<span>' + esc(badgeMeta[k].label) + '</span></span>').join('');
+    return (keys || []).map(k => { const meta = badgeMeta[k] || {label:String(k).replace(/_/g,' ').replace(/\\b\\w/g,c=>c.toUpperCase()),icon:'badge-check'}; return '<span class="profile-badge badge-' + esc(k) + '" title="' + esc(meta.label) + '">' + svgIcon(meta.icon) + '<span>' + esc(meta.label) + '</span></span>'; }).join('');
   }
   function svgIcon(name) {
     const paths = {
@@ -191,10 +195,11 @@
     if (state.page === 'profile') {
       if (!authRequired()) { go('home'); return; }
       const p = state.profile || {};
-      $('#content').innerHTML = '<section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || 'Meu perfil') + '</h2><p>@' + esc(p.username || 'usuario') + '</p><div class="profile-badges">' + renderBadges(state.badges) + '</div><p>' + esc(p.bio || 'Adicione uma descrição ao seu perfil.') + '</p><button class="btn secondary" data-action="edit-profile">Editar perfil</button><button class="btn secondary" data-action="signout">Sair da conta</button></div></section><section class="panel"><h3>Minhas publicações</h3><div id="myPosts"><div class="loading">Carregando…</div></div></section>';
+      $('#content').innerHTML = '<section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || 'Meu perfil') + '</h2><p>@' + esc(p.username || 'usuario') + '</p><div class="profile-badges">' + renderBadges(state.badges) + '</div><p>' + esc(p.bio || 'Adicione uma descrição ao seu perfil.') + '</p><button class="btn secondary" data-action="edit-profile">' + svgIcon('user') + ' Editar perfil</button>' + (state.isAdmin ? '<button class="btn primary" data-action="admin-panel">' + svgIcon('shield-check') + ' Painel administrativo</button>' : '') + '<button class="btn secondary" data-action="signout">Sair da conta</button></div></section><section class="panel"><h3>Minhas publicações</h3><div id="myPosts"><div class="loading">Carregando…</div></div></section>;
       const {data,error}=await state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').eq('user_id',state.session.user.id).order('created_at',{ascending:false}).limit(30);
       if(error) throw error; $('#myPosts').innerHTML=data?.length?data.map(renderPost).join(''):'<p class="muted">Você ainda não publicou nada.</p>'; return;
     }
+    if (state.page === 'admin') { if (!state.isAdmin) { notice('Esta área é exclusiva da administração.', 'error'); go('home'); return; } await renderAdminPage(); return; }
     if (state.page === 'messages') {
       if (!authRequired()) { go('home'); return; }
       $('#content').innerHTML = '<section class="empty-state"><div class="empty-mark">✉</div><h2>Suas conversas</h2><p>Para começar, encontre uma pessoa em Explorar e abra o perfil dela. A área de mensagens depende das permissões de conversas do banco.</p><button class="btn primary" data-go="explore">Encontrar pessoas</button></section>'; return;
@@ -203,6 +208,40 @@
       if (!authRequired()) { go('home'); return; }
       $('#content').innerHTML = '<section class="empty-state"><div class="empty-mark">♧</div><h2>Notificações</h2><p>Você verá novidades da sua conta aqui quando houver notificações disponíveis.</p><button class="btn secondary" data-action="refresh">Atualizar</button></section>'; return;
     }
+  }
+  async function renderAdminPage() {
+    if (!state.isAdmin) throw new Error('Acesso restrito à administração.');
+    $('#content').innerHTML = '<section class="admin-hero"><div><p class="eyebrow">CENTRO DE CONTROLE</p><h2>Administração do TeurChat</h2><p>Gerencie a comunidade, atribua emblemas personalizados e aplique ou remova banimentos.</p></div><span class="admin-shield">' + svgIcon('shield-check') + '</span></section><section class="panel admin-tools"><div class="admin-toolbar"><input id="adminSearch" type="search" placeholder="Buscar por nome ou @usuário" aria-label="Buscar usuários"><button class="btn secondary" data-action="admin-refresh">' + svgIcon('refresh') + ' Atualizar</button></div><p class="muted small">Os nomes de usuário são exclusivos. Emblemas são identificadores visuais e não concedem permissões administrativas.</p><div id="adminUsers"><div class="loading"><span class="spinner"></span>Carregando usuários…</div></div></section>';
+    const {data,error}=await state.client.rpc('admin_list_users');
+    if(error) throw error;
+    state.adminUsers=data||[];
+    renderAdminUsers();
+  }
+  function renderAdminUsers() {
+    const out=$('#adminUsers'); if(!out)return;
+    const term=($('#adminSearch')?.value||'').trim().toLowerCase().replace(/^@/,'');
+    const users=state.adminUsers.filter(u=>String(u.username||'').toLowerCase().includes(term)||String(u.display_name||'').toLowerCase().includes(term));
+    out.innerHTML=users.length?users.map(u=>'<article class="admin-user"><div class="admin-user-main"><span class="avatar">'+esc(initials(u.display_name||u.username))+'</span><div class="admin-user-copy"><strong>'+esc(u.display_name||u.username)+'</strong><span>@'+esc(u.username)+'</span><div class="profile-badges">'+renderBadges(u.badges||[])+'</div>'+(u.is_banned?'<p class="ban-status">'+svgIcon('shield-check')+' Banido · '+esc(u.ban_reason||'Sem motivo informado')+'</p>':'<p class="muted small">Conta ativa</p>')+'</div></div><div class="admin-user-actions"><button class="btn secondary" data-action="admin-badge" data-id="'+esc(u.id)+'" data-username="'+esc(u.username)+'">'+svgIcon('badge-check')+' Emblema</button>'+(u.is_banned?'<button class="btn secondary" data-action="admin-unban" data-id="'+esc(u.id)+'" data-username="'+esc(u.username)+'">'+svgIcon('user')+' Desbanir</button>':'<button class="btn danger" data-action="admin-ban" data-id="'+esc(u.id)+'" data-username="'+esc(u.username)+'">'+svgIcon('shield-check')+' Banir</button>')+'</div></article>').join(''):'<div class="empty-state"><h3>Nenhum usuário encontrado</h3><p>Tente outro nome ou @usuário.</p></div>';
+  }
+  async function adminBadge(userId, username) {
+    if(!state.isAdmin) throw new Error('Acesso restrito à administração.');
+    const key=prompt('Nome do emblema (ex.: criador, parceiro, vip). Use letras minúsculas, números ou _.');
+    if(key===null)return;
+    const clean=key.trim().toLowerCase().replace(/\\s+/g,'_');
+    if(!/^[a-z0-9_]{2,32}$/.test(clean))throw new Error('Use 2 a 32 caracteres: letras minúsculas, números ou _.');
+    const {error}=await state.client.rpc('admin_set_badge',{target_user:userId,target_badge:clean,should_grant:true});
+    if(error)throw error;
+    notice('Emblema @'+clean+' atribuído a @'+username+'.','success');
+    await renderAdminPage();
+  }
+  async function adminBan(userId, username, shouldBan) {
+    if(!state.isAdmin)throw new Error('Acesso restrito à administração.');
+    if(shouldBan && !confirm('Confirmar o banimento de @'+username+'? A pessoa continuará podendo ver o site, mas não poderá criar novas interações.'))return;
+    const reason=shouldBan?(prompt('Motivo do banimento:','Violação das regras da comunidade')||'Violação das regras da comunidade'):'';
+    const {error}=await state.client.rpc('admin_set_ban',{target_user:userId,should_ban:shouldBan,ban_reason:reason,ban_expires_at:null});
+    if(error)throw error;
+    notice(shouldBan?'@'+username+' foi banido.':'O banimento de @'+username+' foi removido.','success');
+    await renderAdminPage();
   }
   async function submitAuth(form) {
     const fd = new FormData(form);
@@ -367,6 +406,11 @@
   }
   async function handleAction(action, el) {
     const id=el.dataset.id;
+    if(action==='admin-panel') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); go('admin'); return; }
+    if(action==='admin-refresh') return renderAdminPage();
+    if(action==='admin-badge') return adminBadge(id,el.dataset.username);
+    if(action==='admin-ban') return adminBan(id,el.dataset.username,true);
+    if(action==='admin-unban') return adminBan(id,el.dataset.username,false);
     if(action==='compose') return openModal('compose');
     if(action==='close-modal') return closeModal();
     if(action==='auth') return openModal('auth');
@@ -384,6 +428,7 @@
     if(action==='people-search') return searchProfiles($('#peopleSearch')?.value||'');
     if(action==='open-people') { $('#content').innerHTML='<section class="panel"><h2>Encontrar pessoas</h2><form id="peopleSearchForm" class="search-form"><input id="peopleSearch" placeholder="Nome ou @usuário" autocomplete="off"><button class="btn primary" type="submit">Buscar</button></form><div id="peopleResults"><p class="muted">Pesquise para encontrar pessoas da comunidade.</p></div></section>'; return; }
   }
+  document.addEventListener('input', e => { if(e.target?.id==='adminSearch') renderAdminUsers(); });
   document.addEventListener('click', async e => {
     const target=e.target instanceof Element?e.target:null; if(!target)return;
     const nav=target.closest('[data-go]'); if(nav){e.preventDefault();go(nav.dataset.go);return;}
