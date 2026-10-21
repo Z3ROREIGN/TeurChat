@@ -101,7 +101,7 @@
     verified: { label: 'Verificado', icon: 'badge-check' }
   };
   function renderBadges(keys) {
-    return (keys || []).map(k => { const meta = badgeMeta[k] || {label:String(k).replace(/_/g,' ').replace(/\\b\\w/g,c=>c.toUpperCase()),icon:'badge-check'}; return '<span class="profile-badge badge-' + esc(k) + '" title="' + esc(meta.label) + '">' + svgIcon(meta.icon) + '<span>' + esc(meta.label) + '</span></span>'; }).join('');
+    return (keys || []).map(k => { const meta = badgeMeta[k] || {label:String(k).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),icon:'badge-check'}; return '<span class="profile-badge badge-' + esc(k) + '" title="' + esc(meta.label) + '">' + svgIcon(meta.icon) + '<span>' + esc(meta.label) + '</span></span>'; }).join('');
   }
   function svgIcon(name) {
     const paths = {
@@ -227,7 +227,7 @@
     if(!state.isAdmin) throw new Error('Acesso restrito à administração.');
     const key=prompt('Nome do emblema (ex.: criador, parceiro, vip). Use letras minúsculas, números ou _.');
     if(key===null)return;
-    const clean=key.trim().toLowerCase().replace(/\\s+/g,'_');
+    const clean=key.trim().toLowerCase().replace(/\s+/g,'_');
     if(!/^[a-z0-9_]{2,32}$/.test(clean))throw new Error('Use 2 a 32 caracteres: letras minúsculas, números ou _.');
     const {error}=await state.client.rpc('admin_set_badge',{target_user:userId,target_badge:clean,should_grant:true});
     if(error)throw error;
