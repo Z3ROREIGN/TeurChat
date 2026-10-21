@@ -32,7 +32,7 @@
       body.innerHTML = '<div class="modal-head"><div><p class="eyebrow">COMPARTILHE COM A COMUNIDADE</p><h2>Nova publicação</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">×</button></div><form id="postForm"><label>Foto ou vídeo<input name="media" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" required></label><p class="muted small">Até 100 MB por arquivo.</p><label>Título<input name="title" required maxlength="100" placeholder="Título da publicação"></label><label>Descrição<textarea name="body" required maxlength="1200" rows="4" placeholder="Descreva sua foto ou vídeo..."></textarea></label><div class="form-foot"><span class="muted small">Título até 100 caracteres</span><button class="btn primary" type="submit" data-busy>Publicar ↗</button></div></form>';
     } else if (kind === 'comment') {
       if (!authRequired()) return;
-      body.innerHTML = '<div class="modal-head"><div><p class="eyebrow">CONVERSA</p><h2>Comentar publicação</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">×</button></div><form id="commentForm" data-post-id="' + esc(extra.postId) + '"><label>Seu comentário<textarea name="body" required maxlength="500" rows="3" placeholder="Escreva um comentário..."></textarea></label><button class="btn primary full" type="submit" data-busy>Enviar comentário</button></form>';
+      body.innerHTML = '<div class="modal-head"><div><p class="eyebrow">CONVERSA</p><h2>Comentários</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">×</button></div><div id="commentList" class="comment-list"><div class="loading">Carregando comentários…</div></div><form id="commentForm" data-post-id="' + esc(extra.postId) + '"><label>Seu comentário<textarea name="body" required maxlength="500" rows="3" placeholder="Escreva um comentário..."></textarea></label><button class="btn primary full" type="submit" data-busy>Enviar comentário</button></form>'; loadComments(extra.postId).catch(e=>{const box=$('#commentList');if(box)box.innerHTML='<p class="muted">Não foi possível carregar comentários: '+esc(e.message)+'</p>';});
     }
   }
   function closeModal() { $('#modal')?.classList.remove('open'); $('#modal')?.setAttribute('aria-hidden','true'); }
@@ -124,9 +124,26 @@
     const profile = p.profiles || {};
     const liked = Array.isArray(p.likes) && p.likes.some(x => x.user_id === state.session?.user?.id);
     const likes = p.likes?.length || 0, comments = p.comments?.length || 0;
-    return '<article class="post-card" data-post="' + esc(p.id) + '"><div class="post-top">' + avatar(profile) + '<div class="post-author"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + ' · ' + esc(new Date(p.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})) + '</span></div><button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">•••</button></div><div class="post-body">' + esc(p.body) + '</div>' + (p.media_url ? '<a class="media-link" href="' + esc(p.media_url) + '" target="_blank" rel="noopener">Abrir mídia ↗</a>' : '') + '<div class="post-actions"><button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '"><span>' + svgIcon('heart') + '</span> ' + likes + '</button><button class="action" data-action="comment" data-id="' + esc(p.id) + '"><span>' + svgIcon('comment') + '</span> ' + comments + '</button><button class="action" data-action="save" data-id="' + esc(p.id) + '"><span>' + svgIcon('bookmark') + '</span> Salvar</button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '"><span>' + svgIcon('share') + '</span> Compartilhar</button></div></article>';
+    const type = p.media_type || (/\.(mp4|webm|mov)(\?|$)/i.test(p.media_url || '') ? 'video' : 'image');
+    const media = p.media_url ? (type === 'video' ? '<video class="post-media" src="' + esc(p.media_url) + '" controls playsinline preload="metadata"></video>' : '<img class="post-media" src="' + esc(p.media_url) + '" alt="' + esc(p.title || 'Foto da publicação') + '" loading="lazy">') : '';
+    return '<article class="post-card" data-post="' + esc(p.id) + '"><div class="post-top"><button class="avatar-button" data-action="view-profile" data-id="' + esc(p.user_id) + '" aria-label="Ver perfil">' + avatar(profile) + '</button><button class="post-author profile-open" data-action="view-profile" data-id="' + esc(p.user_id) + '"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + ' · ' + esc(new Date(p.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})) + '</span></button><button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">•••</button></div>' + (p.title ? '<h3 class="post-title">' + esc(p.title) + '</h3>' : '') + media + '<div class="post-body">' + esc(p.body) + '</div><div class="post-actions"><button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '"><span>' + svgIcon('heart') + '</span> ' + likes + '</button><button class="action" data-action="comment" data-id="' + esc(p.id) + '"><span>' + svgIcon('comment') + '</span> ' + comments + ' comentários</button><button class="action" data-action="save" data-id="' + esc(p.id) + '"><span>' + svgIcon('bookmark') + '</span> Salvar</button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '"><span>' + svgIcon('share') + '</span> Compartilhar</button></div></article>';
   }
-  async function fetchPosts() {
+  async function loadComments(postId) {
+    const box = $('#commentList'); if (!box) return;
+    const {data,error} = await state.client.from('comments').select('id,body,created_at,user_id,profiles!comments_user_id_fkey(username,display_name,avatar_url)').eq('post_id',postId).order('created_at',{ascending:true}).limit(100);
+    if (error) throw error;
+    box.innerHTML = data?.length ? data.map(x => '<article class="comment-row">' + avatar(x.profiles || {}) + '<div><strong>' + esc(x.profiles?.display_name || x.profiles?.username || 'Usuário') + ' <span>@' + esc(x.profiles?.username || 'usuario') + '</span></strong><p>' + esc(x.body) + '</p><small>' + esc(new Date(x.created_at).toLocaleString('pt-BR')) + '</small></div></article>').join('') : '<p class="muted">Ainda não há comentários. Seja a primeira pessoa a comentar.</p>';
+  }
+  async function openUserProfile(userId) {
+    const {data:p,error} = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url').eq('id',userId).single();
+    if (error) throw error;
+    const {data:posts,error:postError} = await state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').eq('user_id',userId).order('created_at',{ascending:false}).limit(40);
+    if (postError) throw postError;
+    state.posts = posts || []; state.viewedProfileId = userId;
+    $('#feedFilters').hidden = true; $('#searchBar').hidden = true; $('#pageTitle').textContent = '@' + (p.username || 'perfil');
+    const own = userId === state.session?.user?.id;
+    $('#content').innerHTML = '<button class="btn secondary" data-action="back-feed">← Voltar ao feed</button><section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || p.username) + '</h2><p>@' + esc(p.username) + '</p><p>' + esc(p.bio || '') + '</p>' + (own ? '<button class="btn secondary" data-action="edit-profile">Editar perfil</button>' : '<button class="btn secondary" data-action="follow" data-id="' + esc(p.id) + '" data-username="' + esc(p.username) + '">Seguir / deixar de seguir</button>') + '</div></section><section class="panel"><h3>Publicações de @' + esc(p.username) + '</h3><div id="userPosts">' + (state.posts.length ? state.posts.map(renderPost).join('') : '<p class="muted">Este perfil ainda não publicou fotos ou vídeos.</p>') + '</div></section>';
+  }  async function fetchPosts() {
     let query = state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').order('created_at',{ascending:false}).limit(40);
     if (state.page === 'explore' && state.search) query = query.ilike('body','%' + state.search.replace(/[%_]/g,'') + '%');
     if (state.feed === 'following' && isSignedIn()) {
@@ -166,7 +183,7 @@
         if (error) { $('#content').innerHTML='<div class="empty-state"><h2>Salvos indisponíveis</h2><p>O banco ainda não oferece a tabela de salvos. '+esc(error.message)+'</p></div>'; return; }
         const ids = (data||[]).map(x=>x.post_id);
         if (!ids.length) { $('#content').innerHTML='<div class="empty-state"><h2>Nenhuma publicação salva</h2><p>Use “Salvar” em uma publicação para encontrá-la aqui.</p></div>'; return; }
-        const {data:posts,error:e} = await state.client.from('posts').select('id,user_id,body,media_url,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').in('id',ids).order('created_at',{ascending:false});
+        const {data:posts,error:e} = await state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').in('id',ids).order('created_at',{ascending:false});
         if (e) throw e; state.posts=posts||[]; $('#content').innerHTML=state.posts.map(renderPost).join(''); return;
       }
       await renderFeed(); return;
@@ -176,7 +193,7 @@
       if (!authRequired()) { go('home'); return; }
       const p = state.profile || {};
       $('#content').innerHTML = '<section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || 'Meu perfil') + '</h2><p>@' + esc(p.username || 'usuario') + '</p><div class="profile-badges">' + renderBadges(state.badges) + '</div><p>' + esc(p.bio || 'Adicione uma descrição ao seu perfil.') + '</p><button class="btn secondary" data-action="edit-profile">Editar perfil</button><button class="btn secondary" data-action="signout">Sair da conta</button></div></section><section class="panel"><h3>Minhas publicações</h3><div id="myPosts"><div class="loading">Carregando…</div></div></section>';
-      const {data,error}=await state.client.from('posts').select('id,user_id,body,media_url,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').eq('user_id',state.session.user.id).order('created_at',{ascending:false}).limit(30);
+      const {data,error}=await state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').eq('user_id',state.session.user.id).order('created_at',{ascending:false}).limit(30);
       if(error) throw error; $('#myPosts').innerHTML=data?.length?data.map(renderPost).join(''):'<p class="muted">Você ainda não publicou nada.</p>'; return;
     }
     if (state.page === 'messages') {
@@ -358,6 +375,8 @@
     if(action==='like') return likePost(id);
     if(action==='save') return savePost(id);
     if(action==='comment') return openModal('comment',{postId:id});
+    if(action==='view-profile') { try { await openUserProfile(id); } catch(e) { notice('Não foi possível abrir o perfil: '+e.message,'error'); } return; }
+    if(action==='back-feed') { state.viewedProfileId=null; go('home'); return; }
     if(action==='share') { const url=location.origin+'/#post-'+id; try{if(navigator.share)await navigator.share({title:'TeurChat',url});else{await navigator.clipboard.writeText(url);notice('Link copiado.','success');}}catch(e){if(e.name!=='AbortError')notice('Não foi possível compartilhar este link.');} return; }
     if(action==='post-more') { const p=state.posts.find(x=>x.id===id); if(p?.user_id===state.session?.user?.id){if(confirm('Excluir esta publicação? Esta ação não pode ser desfeita.')){const {error}=await state.client.from('posts').delete().eq('id',id).eq('user_id',state.session.user.id);if(error)notice(error.message,'error');else{notice('Publicação excluída.','success');await renderPage();}}}else notice('Opções adicionais estarão disponíveis em breve.'); return; }
     if(action==='signout') { const {error}=await state.client.auth.signOut(); if(error)notice(error.message,'error');else{state.session=null;state.profile=null;updateAccountUI();go('home');notice('Você saiu da conta.');} return; }
