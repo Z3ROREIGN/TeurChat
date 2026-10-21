@@ -87,11 +87,11 @@
   }
   function updateAccountUI() {
     const p = state.profile, btn = $('#accountButton');
-    if (btn) btn.innerHTML = isSignedIn() ? '<span class="avatar tiny">' + esc(initials(p?.display_name || p?.username || 'U')) + '</span><span class="account-label">' + esc(p?.display_name || p?.username || 'Minha conta') + '</span>' : '<span class="avatar tiny">↗</span><span class="account-label">Entrar</span>';
+    if (btn) btn.innerHTML = isSignedIn() ? '<span class="avatar tiny">' + (p?.avatar_url && /^https:\/\//i.test(p.avatar_url) ? '<img src="' + esc(p.avatar_url) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">' : esc(initials(p?.display_name || p?.username || 'U'))) + '</span><span class="account-label">' + esc(p?.display_name || p?.username || 'Minha conta') + '</span>' : '<span class="avatar tiny">↗</span><span class="account-label">Entrar</span>';
     $('#composeButton').disabled = false;
     $('#sessionHint').textContent = isSignedIn() ? '@' + (p?.username || 'usuario') : 'Entre para publicar, curtir e conversar.';
   }
-  const avatar = p => '<span class="avatar">' + esc(initials(p?.display_name || p?.username || 'U')) + '</span>';
+  const avatar = p => '<span class="avatar">' + (p?.avatar_url && /^https:\/\//i.test(p.avatar_url) ? '<img src="' + esc(p.avatar_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:50%">' : esc(initials(p?.display_name || p?.username || 'U'))) + '</span>';
   const badgeMeta = {
     admin: { label: 'Administrador', icon: 'shield-check' },
     bug_hunter: { label: 'Caçador de Bugs', icon: 'bug' },
