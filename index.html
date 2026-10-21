@@ -311,6 +311,21 @@ input:focus,textarea:focus,select:focus{border-color:#777982!important;box-shado
 .completion-track{height:5px;border-radius:99px;background:#282c33;overflow:hidden}
 .completion-track span{display:block;height:100%;background:#e7e9ed;border-radius:99px;transition:width .25s}
 @media(max-width:680px){.profile-cover{height:130px}.banner-editor-preview{height:100px}}
+
+/* Banner compacto: ocupa menos espaço no perfil e no editor */
+.profile-cover{height:96px!important;min-height:0}
+.banner-editor-preview{height:64px!important;border-radius:9px;margin-bottom:7px}
+#profileForm label:not(.inline-check){margin:10px 0;gap:6px}
+#profileForm input[type="file"]{padding:7px 9px!important;font-size:12px}
+#profileForm .muted.small{margin:5px 0;font-size:11px;line-height:1.4}
+#profileForm .inline-check{margin:8px 0!important}
+@media(max-width:680px){
+ .profile-cover{height:78px!important}
+ .banner-editor-preview{height:52px!important}
+ .modal-card{padding-top:16px}
+ .modal-head{margin-bottom:12px}
+}
+
 </style>
 </head>
 <body>
@@ -354,8 +369,8 @@ input:focus,textarea:focus,select:focus{border-color:#777982!important;box-shado
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=41"></script>
-<script src="/app.js?v=41"></script>
+<script src="/config.js?v=42"></script>
+<script src="/app.js?v=42"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
