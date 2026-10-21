@@ -132,8 +132,14 @@
     const liked = Array.isArray(p.likes) && p.likes.some(x => x.user_id === state.session?.user?.id);
     const likes = p.likes?.length || 0, comments = p.comments?.length || 0;
     const type = p.media_type || (/\.(mp4|webm|mov)(\?|$)/i.test(p.media_url || '') ? 'video' : 'image');
-    const media = p.media_url ? (type === 'video' ? '<video class="post-media" src="' + esc(p.media_url) + '" controls playsinline preload="metadata"></video>' : '<img class="post-media" src="' + esc(p.media_url) + '" alt="' + esc(p.title || 'Foto da publicação') + '" loading="lazy">') : '';
-    return '<article class="post-card" data-post="' + esc(p.id) + '"><div class="post-top"><button class="avatar-button" data-action="view-profile" data-id="' + esc(p.user_id) + '" aria-label="Ver perfil">' + avatar(profile) + '</button><button class="post-author profile-open" data-action="view-profile" data-id="' + esc(p.user_id) + '"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + ' · ' + esc(new Date(p.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})) + '</span><span class="post-author-badges">' + renderBadges((profile.profile_badges||[]).map(b=>b.badge_key)) + '</span></button><button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">' + svgIcon('more') + '</button></div>' + (p.title ? '<h3 class="post-title">' + esc(p.title) + '</h3>' : '') + media + '<div class="post-body">' + esc(p.body) + '</div><div class="post-actions"><button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '"><span>' + svgIcon('heart') + '</span> ' + likes + '</button><button class="action" data-action="comment" data-id="' + esc(p.id) + '"><span>' + svgIcon('comment') + '</span> ' + comments + ' comentários</button><button class="action" data-action="save" data-id="' + esc(p.id) + '"><span>' + svgIcon('bookmark') + '</span> Salvar</button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '"><span>' + svgIcon('share') + '</span> Compartilhar</button></div></article>';
+    const isReel = type === 'video' && ['home','explore'].includes(state.page) && !!p.media_url;
+    const author = '<button class="avatar-button" data-action="view-profile" data-id="' + esc(p.user_id) + '" aria-label="Ver perfil">' + avatar(profile) + '</button><button class="post-author profile-open" data-action="view-profile" data-id="' + esc(p.user_id) + '"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + '</span></button>';
+    const media = p.media_url ? (type === 'video' ? '<video class="post-media' + (isReel?' reel-media':'') + '" src="' + esc(p.media_url) + '" ' + (isReel?'autoplay muted loop':'controls') + ' playsinline preload="metadata"></video>' : '<img class="post-media" src="' + esc(p.media_url) + '" alt="' + esc(p.title || 'Foto da publicação') + '" loading="lazy">') : '';
+    const actions = '<button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '" aria-label="Curtir"><span>' + svgIcon('heart') + '</span><b>' + likes + '</b></button><button class="action" data-action="comment" data-id="' + esc(p.id) + '" aria-label="Comentários"><span>' + svgIcon('comment') + '</span><b>' + comments + '</b></button><button class="action" data-action="save" data-id="' + esc(p.id) + '" aria-label="Salvar"><span>' + svgIcon('bookmark') + '</span><b>Salvar</b></button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '" aria-label="Compartilhar"><span>' + svgIcon('share') + '</span><b>Enviar</b></button>';
+    if (isReel) {
+      return '<article class="post-card reel-card" data-post="' + esc(p.id) + '"><div class="reel-video-wrap">' + media + '<div class="reel-shade"></div></div><div class="reel-top">' + author + '<button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">' + svgIcon('more') + '</button></div><div class="reel-caption">' + (p.title?'<h3 class="post-title">' + esc(p.title) + '</h3>':'') + '<p>' + esc(p.body || '') + '</p><span class="reel-audio">♫  Áudio original · @' + esc(profile.username || 'usuario') + '</span></div><div class="reel-actions">' + actions + '</div></article>';
+    }
+    return '<article class="post-card" data-post="' + esc(p.id) + '"><div class="post-top">' + author + '<button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">' + svgIcon('more') + '</button></div>' + (p.title ? '<h3 class="post-title">' + esc(p.title) + '</h3>' : '') + media + '<div class="post-body">' + esc(p.body) + '</div><div class="post-actions">' + actions + '</div></article>';
   }
   async function loadComments(postId) {
     const box = $('#commentList'); if (!box) return;
@@ -168,6 +174,19 @@
     if (error) throw error;
     return data || [];
   }
+
+  let reelObserver = null;
+  function setupReelPlayback(root) {
+    if (reelObserver) reelObserver.disconnect();
+    const videos = $$('video.reel-media', root);
+    if (!videos.length || !('IntersectionObserver' in window)) return;
+    reelObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+      const video = entry.target;
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.65) video.play().catch(() => {});
+      else video.pause();
+    }), {threshold:[0,0.65,1]});
+    videos.forEach(video => reelObserver.observe(video));
+  }
   async function renderFeed() {
     const target = $('#content');
     target.innerHTML = '<div class="loading"><span class="spinner"></span><span>Carregando publicações…</span></div>';
@@ -177,7 +196,7 @@
         target.innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('plus') + '</div><h2>' + (state.page==='explore'?'Nada encontrado por enquanto':'Sua comunidade começa aqui') + '</h2><p>' + (state.page==='explore'?'Tente outra busca ou volte mais tarde.':'Ainda não há publicações para mostrar. Seja a primeira pessoa a compartilhar algo.') + '</p><button class="btn primary" data-action="compose">Criar publicação</button></section>';
         return;
       }
-      target.innerHTML = state.posts.map(renderPost).join('');
+      target.innerHTML = state.posts.map(renderPost).join('');\n      setupReelPlayback(target);
     } catch (e) {
       console.error(e);
       target.innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('shield-check') + '</div><h2>Não foi possível carregar o feed</h2><p>' + esc(e.message || 'Verifique a conexão e as permissões do banco.') + '</p><button class="btn primary" data-action="refresh">Tentar novamente</button></section>';
