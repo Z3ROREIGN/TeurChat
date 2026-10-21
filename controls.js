@@ -45,10 +45,10 @@
       Promise.resolve().then(function () { busy = false; });
       return true;
     }
-    if (feed && typeof window.loadFeed === 'function') {
+    if (feed && typeof window.loadFeed === 'function' && typeof window.setFeedMode === 'function') {
       event.preventDefault(); event.stopImmediatePropagation();
       run(function () {
-        window.feedMode = feed;
+        window.setFeedMode(feed);
         document.querySelectorAll('[data-feed]').forEach(function (b) {
           var active = b === button;
           b.classList.toggle('primary', active);
@@ -64,11 +64,14 @@
       return true;
     }
     var fn = null;
-    if (id === 'searchBtn') fn = function () { return typeof window.setMainPage === 'function' ? window.setMainPage('search') : message('Buscar', 'A busca ainda não terminou de iniciar.', function () { location.reload(); }); };
-    else if (id === 'accountBtn') fn = function () { return typeof window.openProfile === 'function' && window.session ? window.openProfile() : typeof window.openAuth === 'function' ? window.openAuth('login') : message('Entrar', 'A tela de acesso ainda não terminou de iniciar.', function () { location.reload(); }); };
-    else if (id === 'rightJoin') fn = function () { return typeof window.openAuth === 'function' ? window.openAuth('signup') : message('Criar conta', 'A tela de cadastro ainda não terminou de iniciar.', function () { location.reload(); }); };
-    else if (id === 'mobileCreate' || id === 'topCreate') fn = function () { return typeof window.showComposer === 'function' ? window.showComposer() : message('Publicar', 'O editor ainda não terminou de iniciar.', function () { location.reload(); }); };
-    else if (id === 'notificationsBtn') fn = function () { return typeof window.openNotifications === 'function' ? window.openNotifications() : message('Notificações', 'As notificações ainda não terminaram de iniciar.', function () { location.reload(); }); };
+    if (id === 'searchBtn' || id === 'accountBtn' || id === 'rightJoin' || id === 'mobileCreate' || id === 'topCreate' || id === 'notificationsBtn') {
+      if (typeof button.onclick === 'function') fn = function () { return button.onclick.call(button, event); };
+      else if (id === 'searchBtn') fn = function () { return typeof window.setMainPage === 'function' ? window.setMainPage('search') : message('Buscar', 'A busca ainda não terminou de iniciar.', function () { location.reload(); }); };
+      else if (id === 'accountBtn') fn = function () { return typeof window.openAuth === 'function' ? window.openAuth('login') : message('Entrar', 'A tela de acesso ainda não terminou de iniciar.', function () { location.reload(); }); };
+      else if (id === 'rightJoin') fn = function () { return typeof window.openAuth === 'function' ? window.openAuth('signup') : message('Criar conta', 'A tela de cadastro ainda não terminou de iniciar.', function () { location.reload(); }); };
+      else if (id === 'mobileCreate' || id === 'topCreate') fn = function () { return typeof window.showComposer === 'function' ? window.showComposer() : message('Publicar', 'O editor ainda não terminou de iniciar.', function () { location.reload(); }); };
+      else if (id === 'notificationsBtn') fn = function () { return typeof window.openNotifications === 'function' ? window.openNotifications() : message('Notificações', 'As notificações ainda não terminaram de iniciar.', function () { location.reload(); }); };
+    }
     else if (id === 'installBtn' || id === 'checkInstall' || button.onclick) fn = function () { if (button.onclick) return button.onclick.call(button, event); };
     if (fn) {
       event.preventDefault(); event.stopImmediatePropagation();
