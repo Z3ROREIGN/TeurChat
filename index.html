@@ -24,7 +24,7 @@ body{background:radial-gradient(ellipse at 50% -20%,#181b20 0,transparent 46%),v
 .brand{gap:12px;font-size:23px;letter-spacing:-.9px}.brand-mark{padding:0;background:transparent;border-radius:12px;overflow:hidden}.brand-mark img{display:block;border-radius:12px;object-fit:cover}
 .brand small{letter-spacing:1.05px;font-size:9px;font-weight:700;color:#858c97}
 .nav-list{gap:5px}.nav-item{border-radius:12px;padding:12px 13px;gap:13px;color:#a8aeb8}.nav-item.active{box-shadow:inset 2px 0 #f4f5f6;background:#171a1f;border-color:#2d323a}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;border-radius:11px;letter-spacing:-.01em}.btn.primary{box-shadow:0 5px 18px #ffffff0a}.btn.danger{background:#2a1518;border-color:#5b2a31;color:#ffb5bd}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;border-radius:11px;letter-spacing:-.01em}.btn .svg-icon{width:17px;height:17px;flex:0 0 auto}.btn.primary{box-shadow:0 5px 18px #ffffff0a}.btn.danger{background:#2a1518;border-color:#5b2a31;color:#ffb5bd}
 .icon-btn{font-size:0}.icon-btn .svg-icon{width:18px;height:18px}
 .topbar{padding:21px 25px;background:rgba(7,8,9,.88);border-bottom-color:#24282f}.topbar h1{font-size:22px;font-weight:750;letter-spacing:-.7px}
 .main{border-color:#22262c}.feed-filters,.search-bar{border-color:#22262c}.filter{padding:9px 14px}.filter.active{background:#1b1e23}
@@ -69,7 +69,7 @@ input:focus,textarea:focus{border-color:#8c949f;box-shadow:0 0 0 3px #ffffff0b;o
       <button class="nav-item" data-go="profile"><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Meu perfil</button>
       <button class="nav-item" id="adminNav" data-go="admin" hidden><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11z"/><path d="m9 12 2 2 4-4"/></svg></span>Administração</button>
     </nav>
-    <button class="btn primary" id="composeButton" data-action="compose">＋ Criar publicação</button>
+    <button class="btn primary" id="composeButton" data-action="compose"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Criar publicação</button>
     <button class="account-button" id="accountButton" data-action="auth"><span class="avatar tiny">↗</span><span class="account-label">Entrar</span></button>
     <div class="session-box"><strong>TeurChat</strong><br><span id="sessionHint">Entre para publicar, curtir e conversar.</span></div>
   </aside>
@@ -80,7 +80,7 @@ input:focus,textarea:focus{border-color:#8c949f;box-shadow:0 0 0 3px #ffffff0b;o
     <section id="content" aria-live="polite"><div class="loading"><span class="spinner"></span>Iniciando o TeurChat…</div></section>
   </main>
   <aside class="rightbar">
-    <section class="right-card"><p class="eyebrow">COMUNIDADE</p><h3>Um lugar para trocar ideias</h3><p>Compartilhe o que importa, descubra novas publicações e encontre pessoas com interesses em comum.</p><button class="btn secondary" data-action="open-people">Encontrar pessoas ↗</button></section>
+    <section class="right-card"><p class="eyebrow">COMUNIDADE</p><h3>Um lugar para trocar ideias</h3><p>Compartilhe o que importa, descubra novas publicações e encontre pessoas com interesses em comum.</p><button class="btn secondary" data-action="open-people"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg> Encontrar pessoas</button></section>
     <section class="right-card"><h3>Comece por aqui</h3><p>Entre ou crie uma conta para publicar, curtir, comentar e seguir outras pessoas.</p><button class="btn primary" data-action="auth">Entrar / Criar conta</button></section>
     <section class="right-card"><p>© 2026 TeurChat<br>Feito para conversas reais.</p></section>
   </aside>
