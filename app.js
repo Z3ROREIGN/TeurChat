@@ -2,7 +2,7 @@
   'use strict';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [] };
+  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null };
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const initials = v => (String(v || 'U').trim()[0] || 'U').toUpperCase();
   const notice = (msg, type = '') => {
@@ -29,7 +29,7 @@
       body.innerHTML = '<div class="modal-head"><div><p class="eyebrow">BEM-VINDO AO TEURCHAT</p><h2 id="authTitle">Entre na sua conta</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">×</button></div><div class="auth-switch"><button class="switch active" data-auth-mode="login">Entrar</button><button class="switch" data-auth-mode="signup">Criar conta</button></div><form id="authForm"><label>E-mail<input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="voce@email.com"></label><label>Senha<input name="password" type="password" minlength="6" autocomplete="current-password" required placeholder="Mínimo de 6 caracteres"></label><div id="signupFields" hidden><label>Nome de usuário<input name="username" autocomplete="username" minlength="3" maxlength="24" placeholder="seunome"></label><label>Como quer ser chamado?<input name="display_name" maxlength="40" placeholder="Seu nome"></label></div><button class="btn primary full" data-busy type="submit" id="authSubmit">Entrar</button><p class="muted small">Sua conta é protegida pelo Supabase do TeurChat.</p></form>';
     } else if (kind === 'compose') {
       if (!authRequired()) return;
-      body.innerHTML = '<div class="modal-head"><div><p class="eyebrow">COMPARTILHE COM A COMUNIDADE</p><h2>Nova publicação</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">×</button></div><form id="postForm"><label>O que você quer compartilhar?<textarea name="body" required maxlength="1200" rows="5" placeholder="Escreva sua publicação..."></textarea></label><div class="form-foot"><span class="muted small">Até 1.200 caracteres</span><button class="btn primary" type="submit" data-busy>Publicar ↗</button></div></form>';
+      body.innerHTML = '<div class="modal-head"><div><p class="eyebrow">COMPARTILHE COM A COMUNIDADE</p><h2>Nova publicação</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">×</button></div><form id="postForm"><label>Foto ou vídeo<input name="media" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" required></label><p class="muted small">Até 100 MB por arquivo.</p><label>Título<input name="title" required maxlength="100" placeholder="Título da publicação"></label><label>Descrição<textarea name="body" required maxlength="1200" rows="4" placeholder="Descreva sua foto ou vídeo..."></textarea></label><div class="form-foot"><span class="muted small">Título até 100 caracteres</span><button class="btn primary" type="submit" data-busy>Publicar ↗</button></div></form>';
     } else if (kind === 'comment') {
       if (!authRequired()) return;
       body.innerHTML = '<div class="modal-head"><div><p class="eyebrow">CONVERSA</p><h2>Comentar publicação</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">×</button></div><form id="commentForm" data-post-id="' + esc(extra.postId) + '"><label>Seu comentário<textarea name="body" required maxlength="500" rows="3" placeholder="Escreva um comentário..."></textarea></label><button class="btn primary full" type="submit" data-busy>Enviar comentário</button></form>';
@@ -127,7 +127,7 @@
     return '<article class="post-card" data-post="' + esc(p.id) + '"><div class="post-top">' + avatar(profile) + '<div class="post-author"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + ' · ' + esc(new Date(p.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})) + '</span></div><button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">•••</button></div><div class="post-body">' + esc(p.body) + '</div>' + (p.media_url ? '<a class="media-link" href="' + esc(p.media_url) + '" target="_blank" rel="noopener">Abrir mídia ↗</a>' : '') + '<div class="post-actions"><button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '"><span>' + svgIcon('heart') + '</span> ' + likes + '</button><button class="action" data-action="comment" data-id="' + esc(p.id) + '"><span>' + svgIcon('comment') + '</span> ' + comments + '</button><button class="action" data-action="save" data-id="' + esc(p.id) + '"><span>' + svgIcon('bookmark') + '</span> Salvar</button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '"><span>' + svgIcon('share') + '</span> Compartilhar</button></div></article>';
   }
   async function fetchPosts() {
-    let query = state.client.from('posts').select('id,user_id,body,media_url,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').order('created_at',{ascending:false}).limit(40);
+    let query = state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').order('created_at',{ascending:false}).limit(40);
     if (state.page === 'explore' && state.search) query = query.ilike('body','%' + state.search.replace(/[%_]/g,'') + '%');
     if (state.feed === 'following' && isSignedIn()) {
       const {data: follows, error: fErr} = await state.client.from('follows').select('followed_id').eq('follower_id',state.session.user.id);
@@ -243,14 +243,22 @@
   }
   async function publishPost(form) {
     if (!authRequired()) return;
-    const body = String(new FormData(form).get('body')||'').trim();
-    if (!body) { notice('Escreva algo antes de publicar.'); return; }
+    const fd = new FormData(form), title = String(fd.get('title') || '').trim(), body = String(fd.get('body') || '').trim(), file = fd.get('media');
+    if (!file || !file.size) { notice('Escolha uma foto ou vídeo.', 'error'); return; }
+    if (!title || !body) { notice('Preencha o título e a descrição.', 'error'); return; }
+    if (file.size > 100 * 1024 * 1024) { notice('O arquivo ultrapassa 100 MB.', 'error'); return; }
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) { notice('Envie somente uma foto ou um vídeo.', 'error'); return; }
     setBusy(true);
     try {
-      const {error} = await state.client.from('posts').insert({user_id:state.session.user.id,body});
-      if (error) throw error;
-      closeModal(); state.page='home'; state.feed='all'; go('home'); notice('Publicação enviada.','success');
-    } catch(e) { notice('Não foi possível publicar: ' + e.message,'error'); }
+      const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g,'') || 'bin';
+      const path = state.session.user.id + '/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext;
+      const {data:uploaded,error:uploadError} = await state.client.storage.from('teur-media').upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});
+      if (uploadError) throw uploadError;
+      const {data:urlData} = state.client.storage.from('teur-media').getPublicUrl(uploaded.path);
+      const {error} = await state.client.from('posts').insert({user_id:state.session.user.id,title,body,media_url:urlData.publicUrl,media_type:file.type.startsWith('video/')?'video':'image'});
+      if (error) { await state.client.storage.from('teur-media').remove([uploaded.path]); throw error; }
+      closeModal(); state.page='home'; state.feed='all'; go('home'); notice('Foto/vídeo publicado com sucesso.','success');
+    } catch(e) { console.error(e); notice('Não foi possível publicar: '+(e.message || 'verifique o armazenamento do Supabase.'),'error'); }
     finally { setBusy(false); }
   }
   async function likePost(id) {
