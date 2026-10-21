@@ -299,6 +299,18 @@ input:focus,textarea:focus,select:focus{border-color:#777982!important;box-shado
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
+
+.profile-cover{height:clamp(135px,24vw,220px);background-size:cover;background-position:center;background-repeat:no-repeat;position:relative;overflow:hidden}
+.profile-cover:after{content:"";position:absolute;inset:45% 0 0;background:linear-gradient(transparent,rgba(0,0,0,.28));pointer-events:none}
+.banner-editor-preview{height:128px;border-radius:14px;background-size:cover;background-position:center;border:1px solid var(--line);margin-bottom:12px}
+.inline-check{display:flex!important;grid-template-columns:auto 1fr!important;align-items:center;gap:9px!important;font-weight:500!important}
+.inline-check input{width:17px;height:17px;accent-color:#f4f5f7}
+.profile-completion{max-width:360px;margin:14px 0;color:var(--muted);font-size:12px}
+.profile-completion>div:first-child{display:flex;justify-content:space-between;gap:10px;margin-bottom:7px}
+.profile-completion strong{color:var(--text)}
+.completion-track{height:5px;border-radius:99px;background:#282c33;overflow:hidden}
+.completion-track span{display:block;height:100%;background:#e7e9ed;border-radius:99px;transition:width .25s}
+@media(max-width:680px){.profile-cover{height:130px}.banner-editor-preview{height:100px}}
 </style>
 </head>
 <body>
@@ -342,8 +354,8 @@ input:focus,textarea:focus,select:focus{border-color:#777982!important;box-shado
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=40"></script>
-<script src="/app.js?v=40"></script>
+<script src="/config.js?v=41"></script>
+<script src="/app.js?v=41"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
