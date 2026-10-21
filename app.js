@@ -138,7 +138,7 @@
     const box = $('#commentList'); if (!box) return;
     const {data,error} = await state.client.from('comments').select('id,body,created_at,user_id,profiles!comments_user_id_fkey(username,display_name,avatar_url)').eq('post_id',postId).order('created_at',{ascending:true}).limit(100);
     if (error) throw error;
-    box.innerHTML = data?.length ? data.map(x => '<article class="comment-row">' + avatar(x.profiles || {}) + '<div><strong>' + esc(x.profiles?.display_name || x.profiles?.username || 'Usuário') + ' <span>@' + esc(x.profiles?.username || 'usuario') + '</span></strong><p>' + esc(x.body) + '</p><small>' + esc(new Date(x.created_at).toLocaleString('pt-BR')) + '</small></div></article>').join('') : '<p class="muted">Ainda não há comentários. Seja a primeira pessoa a comentar.</p>';
+    box.innerHTML = data?.length ? data.map(x => '<article class="comment-row">' + avatar(x.profiles || {}) + '<div><strong>' + esc(x.profiles?.display_name || x.profiles?.username || 'Usuário') + ' <span>@' + esc(x.profiles?.username || 'usuario') + '</span></strong><p>' + esc(x.body) + '</p><small>' + esc(new Date(x.created_at).toLocaleString('pt-BR')) + '</small>' + (state.isAdmin ? '<button class="action" data-action="admin-delete-comment" data-id="' + esc(x.id) + '">' + svgIcon('close') + ' Remover</button>' : '') + '</div></article>').join('') : '<p class="muted">Ainda não há comentários. Seja a primeira pessoa a comentar.</p>';
   }
   async function openUserProfile(userId) {
     const {data:p,error} = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url').eq('id',userId).single();
@@ -426,6 +426,7 @@
     if(action==='admin-refresh') return renderAdminPage();
     if(action==='admin-badge') return adminBadge(id,el.dataset.username);
     if(action==='admin-remove-badge') return adminRemoveBadge(id,el.dataset.username);
+    if(action==='admin-delete-comment') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); if(!confirm('Excluir este comentário?'))return; const {error}=await state.client.rpc('admin_delete_comment',{target_comment:id}); if(error)throw error; notice('Comentário removido.','success'); const postId=$('#commentForm')?.dataset.postId; if(postId) await loadComments(postId); await renderPage(); return; }
     if(action==='admin-ban') return adminBan(id,el.dataset.username,true);
     if(action==='admin-unban') return adminBan(id,el.dataset.username,false);
     if(action==='compose') return openModal('compose');
@@ -438,7 +439,7 @@
     if(action==='view-profile') { try { await openUserProfile(id); } catch(e) { notice('Não foi possível abrir o perfil: '+e.message,'error'); } return; }
     if(action==='back-feed') { state.viewedProfileId=null; go('home'); return; }
     if(action==='share') { const url=location.origin+'/#post-'+id; try{if(navigator.share)await navigator.share({title:'TeurChat',url});else{await navigator.clipboard.writeText(url);notice('Link copiado.','success');}}catch(e){if(e.name!=='AbortError')notice('Não foi possível compartilhar este link.');} return; }
-    if(action==='post-more') { const p=state.posts.find(x=>x.id===id); if(p?.user_id===state.session?.user?.id){if(confirm('Excluir esta publicação? Esta ação não pode ser desfeita.')){const {error}=await state.client.from('posts').delete().eq('id',id).eq('user_id',state.session.user.id);if(error)notice(error.message,'error');else{notice('Publicação excluída.','success');await renderPage();}}}else notice('Opções adicionais estarão disponíveis em breve.'); return; }
+    if(action==='post-more') { const p=state.posts.find(x=>x.id===id); if(!p)return; if(state.isAdmin){if(!confirm('Excluir esta publicação de @'+(p.profiles?.username||'usuário')+'? Esta ação não pode ser desfeita.'))return; const {error}=await state.client.rpc('admin_delete_post',{target_post:id});if(error)throw error;notice('Publicação removida pela administração.','success');await renderPage();}else if(p.user_id===state.session?.user?.id){if(confirm('Excluir esta publicação? Esta ação não pode ser desfeita.')){const {error}=await state.client.from('posts').delete().eq('id',id).eq('user_id',state.session.user.id);if(error)notice(error.message,'error');else{notice('Publicação excluída.','success');await renderPage();}}}else notice('Você só pode excluir suas próprias publicações.'); return; }
     if(action==='signout') { const {error}=await state.client.auth.signOut(); if(error)notice(error.message,'error');else{state.session=null;state.profile=null;updateAccountUI();go('home');notice('Você saiu da conta.');} return; }
     if(action==='edit-profile') return editProfile();
     if(action==='follow') return followUser(el.dataset.id,el.dataset.username);
