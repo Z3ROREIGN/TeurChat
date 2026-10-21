@@ -233,11 +233,24 @@
   }
   async function renderAdminPage() {
     if (!state.isAdmin) throw new Error('Acesso restrito à administração.');
-    $('#content').innerHTML = '<section class="admin-hero"><div><p class="eyebrow">CENTRO DE CONTROLE</p><h2>Administração do TeurChat</h2><p>Gerencie a comunidade, atribua emblemas personalizados e aplique ou remova banimentos.</p></div><span class="admin-shield">' + svgIcon('shield-check') + '</span></section><section class="panel admin-tools"><div class="admin-toolbar"><input id="adminSearch" type="search" placeholder="Buscar por nome ou @usuário" aria-label="Buscar usuários"><button class="btn secondary" data-action="admin-refresh">' + svgIcon('refresh') + ' Atualizar</button></div><p class="muted small">Os nomes de usuário são exclusivos. Emblemas são identificadores visuais e não concedem permissões administrativas.</p><div id="adminUsers"><div class="loading"><span class="spinner"></span>Carregando usuários…</div></div></section>';
+    $('#content').innerHTML = '<section class="admin-hero"><div><p class="eyebrow">CENTRO DE CONTROLE</p><h2>Administração do TeurChat</h2><p>Gerencie usuários, moderação, suporte, denúncias e decisões administrativas.</p></div><span class="admin-shield">' + svgIcon('shield-check') + '</span></section><section class="panel admin-tools"><div class="admin-toolbar"><input id="adminSearch" type="search" placeholder="Buscar por nome ou @usuário" aria-label="Buscar usuários"><button class="btn secondary" data-action="admin-refresh">' + svgIcon('refresh') + ' Atualizar</button></div><p class="muted small">Os nomes de usuário são exclusivos. Emblemas são identificadores visuais e não concedem permissões administrativas.</p><div id="adminUsers"><div class="loading"><span class="spinner"></span>Carregando usuários…</div></div></section><section class="panel admin-tools"><div class="section-heading"><div><p class="eyebrow">CENTRAL DE ATENDIMENTO</p><h3>Suporte e denúncias</h3></div><button class="btn secondary" data-action="admin-cases-refresh">Atualizar</button></div><label>Filtrar chamados<select id="adminCaseFilter"><option value="all">Todos</option><option value="open">Abertos</option><option value="in_progress">Em andamento</option><option value="waiting_user">Aguardando usuário</option><option value="resolved">Resolvidos</option><option value="closed">Encerrados</option></select></label><div id="adminCases">Carregando chamados…</div></section><section class="panel admin-tools"><div class="section-heading"><h3>Auditoria administrativa</h3><button class="btn secondary" data-action="admin-audit-refresh">Atualizar</button></div><div id="adminAudit">Carregando registros…</div></section>'
     const {data,error}=await state.client.rpc('admin_list_users');
     if(error) throw error;
     state.adminUsers=data||[];
     renderAdminUsers();
+    await loadAdminCases();
+    await loadAdminAudit();
+  }
+  async function loadAdminCases() {
+    if(!state.isAdmin)throw new Error('Acesso restrito à administração.');
+    const {data,error}=await state.client.rpc('admin_list_cases',{filter_status:$('#adminCaseFilter')?.value||'all'});if(error)throw error;
+    state.adminCases=data||[];const out=$('#adminCases');if(!out)return;
+    out.innerHTML=state.adminCases.length?state.adminCases.map(c=>'<article class="case-card"><strong>'+esc(c.subject)+'</strong><p class="muted small">'+esc(({support:'Suporte',report:'Denúncia',bug:'Bug',appeal:'Recurso'}[c.category]||c.category))+' · @'+esc(c.username)+' · '+esc(new Date(c.created_at).toLocaleString('pt-BR'))+'</p><p>'+esc(c.message)+'</p>'+(c.target_username?'<p class="muted small">Usuário relacionado: @'+esc(c.target_username)+'</p>':'')+(c.target_url?'<p class="muted small">Link: '+esc(c.target_url)+'</p>':'')+'<div class="case-controls"><label>Status<select data-case-status="'+esc(c.id)+'"><option value="open" '+(c.status==='open'?'selected':'')+'>Aberto</option><option value="in_progress" '+(c.status==='in_progress'?'selected':'')+'>Em andamento</option><option value="waiting_user" '+(c.status==='waiting_user'?'selected':'')+'>Aguardando usuário</option><option value="resolved" '+(c.status==='resolved'?'selected':'')+'>Resolvido</option><option value="closed" '+(c.status==='closed'?'selected':'')+'>Encerrado</option></select></label><label>Prioridade<select data-case-priority="'+esc(c.id)+'"><option value="low" '+(c.priority==='low'?'selected':'')+'>Baixa</option><option value="normal" '+(c.priority==='normal'?'selected':'')+'>Normal</option><option value="high" '+(c.priority==='high'?'selected':'')+'>Alta</option><option value="urgent" '+(c.priority==='urgent'?'selected':'')+'>Urgente</option></select></label><label>Resposta / decisão<textarea data-case-resolution="'+esc(c.id)+'" rows="2" maxlength="4000">'+esc(c.resolution||'')+'</textarea></label><button class="btn primary" data-action="admin-case-save" data-id="'+esc(c.id)+'">Salvar decisão</button></div></article>').join(''):'<p class="muted">Nenhum chamado para este filtro.</p>';
+  }
+  async function loadAdminAudit() {
+    if(!state.isAdmin)throw new Error('Acesso restrito à administração.');
+    const {data,error}=await state.client.rpc('admin_list_audit',{limit_rows:50});if(error)throw error;const out=$('#adminAudit');if(!out)return;
+    out.innerHTML=(data||[]).length?data.map(x=>'<article class="audit-row"><strong>'+esc(String(x.action).replace(/_/g,' '))+'</strong><p class="muted small">Por @'+esc(x.actor_username||'conta removida')+' · '+esc(x.target_username?'alvo @'+x.target_username:(x.target_case?'chamado '+x.target_case:''))+'</p><p class="muted small">'+esc(JSON.stringify(x.details||{}))+'</p><time>'+esc(new Date(x.created_at).toLocaleString('pt-BR'))+'</time></article>').join(''):'<p class="muted">Nenhuma ação registrada.</p>';
   }
   function renderAdminUsers() {
     const out=$('#adminUsers'); if(!out)return;
@@ -441,6 +454,9 @@
     const id=el.dataset.id;
     if(action==='admin-panel') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); go('admin'); return; }
     if(action==='admin-refresh') return renderAdminPage();
+    if(action==='admin-cases-refresh') return loadAdminCases();
+    if(action==='admin-audit-refresh') return loadAdminAudit();
+    if(action==='admin-case-save') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); const status=$('[data-case-status="'+CSS.escape(id)+'"]')?.value||'open'; const priority=$('[data-case-priority="'+CSS.escape(id)+'"]')?.value||'normal'; const resolution=$('[data-case-resolution="'+CSS.escape(id)+'"]')?.value||''; const {error}=await state.client.rpc('admin_update_case',{target_case:id,new_status:status,new_priority:priority,case_resolution:resolution,assign_to_self:true});if(error)throw error;notice('Chamado atualizado e decisão registrada.','success');await loadAdminCases();await loadAdminAudit();return; }
     if(action==='support-refresh') return loadMyCases();
     if(action==='admin-badge') return adminBadge(id,el.dataset.username);
     if(action==='admin-remove-badge') return adminRemoveBadge(id,el.dataset.username);
@@ -465,6 +481,7 @@
     if(action==='open-people') { $('#content').innerHTML='<section class="panel"><h2>Encontrar pessoas</h2><form id="peopleSearchForm" class="search-form"><input id="peopleSearch" placeholder="Nome ou @usuário" autocomplete="off"><button class="btn primary" type="submit">Buscar</button></form><div id="peopleResults"><p class="muted">Pesquise para encontrar pessoas da comunidade.</p></div></section>'; return; }
   }
   document.addEventListener('input', e => { if(e.target?.id==='adminSearch') renderAdminUsers(); });
+  document.addEventListener('change',async e=>{if(e.target?.id==='adminCaseFilter'){try{await loadAdminCases()}catch(err){notice(err.message||'Falha ao filtrar chamados.','error')}}});
   document.addEventListener('click', async e => {
     const target=e.target instanceof Element?e.target:null; if(!target)return;
     const nav=target.closest('[data-go]'); if(nav){e.preventDefault();go(nav.dataset.go);return;}
