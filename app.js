@@ -204,7 +204,7 @@
       if (!authRequired()) { go('home'); return; }
       const p = state.profile || {};
       const [followers,following]=await Promise.all([state.client.from('follows').select('follower_id',{count:'exact',head:true}).eq('followed_id',state.session.user.id),state.client.from('follows').select('followed_id',{count:'exact',head:true}).eq('follower_id',state.session.user.id)]);
-      $('#content').innerHTML = '<section class="profile-card">' + profileCover(p) + '<div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || 'Meu perfil') + '</h2><p>@' + esc(p.username || 'usuario') + '</p><div class="profile-badges">' + renderBadges(state.badges) + '</div><div class="profile-stats"><button data-action="open-follow-list" data-id="'+esc(state.session.user.id)+'" data-kind="followers"><strong>'+(followers.count||0)+'</strong><span>Seguidores</span></button><button data-action="open-follow-list" data-id="'+esc(state.session.user.id)+'" data-kind="following"><strong>'+(following.count||0)+'</strong><span>Seguindo</span></button></div><p>' + esc(p.bio || 'Adicione uma descrição ao seu perfil.') + '</p><button class="btn secondary" data-action="edit-profile">' + svgIcon('user') + ' Editar perfil</button>' + (state.isAdmin ? '<button class="btn primary" data-action="admin-panel">' + svgIcon('shield-check') + ' Painel administrativo</button>' : '') + '<button class="btn secondary" data-action="signout">Sair da conta</button></div></section><section class="panel"><h3>Minhas publicações</h3><div id="myPosts"><div class="loading">Carregando…</div></div></section>';
+      $('#content').innerHTML = '<section class="profile-card">' + profileCover(p) + '<div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || 'Meu perfil') + '</h2><p>@' + esc(p.username || 'usuario') + '</p><div class="profile-badges">' + renderBadges(state.badges) + '</div><div class="profile-stats"><button data-action="open-follow-list" data-id="'+esc(state.session.user.id)+'" data-kind="followers"><strong>'+(followers.count||0)+'</strong><span>Seguidores</span></button><button data-action="open-follow-list" data-id="'+esc(state.session.user.id)+'" data-kind="following"><strong>'+(following.count||0)+'</strong><span>Seguindo</span></button></div><p>' + esc(p.bio || 'Adicione uma descrição ao seu perfil.') + '</p><div class="profile-completion"><div><span>Perfil completo</span><strong>' + Math.round(([p.avatar_url,p.bio,p.banner_url].filter(Boolean).length / 3) * 100) + '%</strong></div><div class="completion-track"><span style="width:' + Math.round(([p.avatar_url,p.bio,p.banner_url].filter(Boolean).length / 3) * 100) + '%"></span></div></div><button class="btn secondary" data-action="edit-profile">' + svgIcon('user') + ' Editar perfil</button>' + (state.isAdmin ? '<button class="btn primary" data-action="admin-panel">' + svgIcon('shield-check') + ' Painel administrativo</button>' : '') + '<button class="btn secondary" data-action="signout">Sair da conta</button></div></section><section class="panel"><h3>Minhas publicações</h3><div id="myPosts"><div class="loading">Carregando…</div></div></section>';
       const {data,error}=await state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url,profile_badges(badge_key)),likes(user_id),comments(id)').eq('user_id',state.session.user.id).order('created_at',{ascending:false}).limit(30);
       if(error) throw error; $('#myPosts').innerHTML=data?.length?data.map(renderPost).join(''):'<p class="muted">Você ainda não publicou nada.</p>'; return;
     }
@@ -654,6 +654,17 @@
     const feed=target.closest('[data-feed-mode]');if(feed){state.feed=feed.dataset.feedMode;$$('[data-feed-mode]').forEach(b=>b.classList.toggle('active',b===feed));await renderFeed().catch(err=>notice(err.message,'error'));return;}
     const mode=target.closest('[data-auth-mode]');if(mode){const form=$('#authForm');form.dataset.mode=mode.dataset.authMode;$('#authTitle').textContent=mode.dataset.authMode==='signup'?'Crie sua conta':'Entre na sua conta';$('#signupFields').hidden=mode.dataset.authMode!=='signup';$('#authSubmit').textContent=mode.dataset.authMode==='signup'?'Criar conta':'Entrar';$$('[data-auth-mode]').forEach(b=>b.classList.toggle('active',b===mode));return;}
     if(target.id==='modal'){closeModal();}
+  });
+  document.addEventListener('change', e => {
+    if (e.target?.name !== 'banner_file') return;
+    const file = e.target.files?.[0];
+    const preview = document.querySelector('.banner-editor-preview');
+    if (!file || !preview) return;
+    if (!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)) { notice('Use JPG, PNG, WEBP ou GIF.', 'error'); e.target.value=''; return; }
+    if (file.size > 10 * 1024 * 1024) { notice('O banner precisa ter no máximo 10 MB.', 'error'); e.target.value=''; return; }
+    const reader = new FileReader();
+    reader.onload = () => { preview.style.backgroundImage = 'url("' + String(reader.result).replace(/"/g,'') + '")'; };
+    reader.readAsDataURL(file);
   });
   document.addEventListener('submit', async e => {
     const form=e.target;if(!(form instanceof HTMLFormElement))return;
