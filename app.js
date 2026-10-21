@@ -105,7 +105,7 @@
       $('#searchBar').hidden = state.page !== 'explore';
       if (state.page === 'saved') {
         if (!authRequired()) { go('home'); return; }
-        const {data,error} = await state.client.from('saved_posts').select('post_id').eq('user_id',state.session.user.id);
+        const {data,error} = await state.client.from('bookmarks').select('post_id').eq('user_id',state.session.user.id);
         if (error) { $('#content').innerHTML='<div class="empty-state"><h2>Salvos indisponíveis</h2><p>O banco ainda não oferece a tabela de salvos. '+esc(error.message)+'</p></div>'; return; }
         const ids = (data||[]).map(x=>x.post_id);
         if (!ids.length) { $('#content').innerHTML='<div class="empty-state"><h2>Nenhuma publicação salva</h2><p>Use “Salvar” em uma publicação para encontrá-la aqui.</p></div>'; return; }
@@ -178,10 +178,10 @@
   async function savePost(id) {
     if (!authRequired()) return;
     try {
-      const {data:existing,error:readError}=await state.client.from('saved_posts').select('post_id').eq('user_id',state.session.user.id).eq('post_id',id).maybeSingle();
+      const {data:existing,error:readError}=await state.client.from('bookmarks').select('post_id').eq('user_id',state.session.user.id).eq('post_id',id).maybeSingle();
       if(readError) throw readError;
-      if(existing) { const {error}=await state.client.from('saved_posts').delete().eq('user_id',state.session.user.id).eq('post_id',id); if(error) throw error; notice('Publicação removida dos salvos.'); }
-      else { const {error}=await state.client.from('saved_posts').insert({user_id:state.session.user.id,post_id:id}); if(error) throw error; notice('Publicação salva.','success'); }
+      if(existing) { const {error}=await state.client.from('bookmarks').delete().eq('user_id',state.session.user.id).eq('post_id',id); if(error) throw error; notice('Publicação removida dos salvos.'); }
+      else { const {error}=await state.client.from('bookmarks').insert({user_id:state.session.user.id,post_id:id}); if(error) throw error; notice('Publicação salva.','success'); }
       if(state.page==='saved') await renderPage();
     } catch(e) { notice('Não foi possível salvar: '+e.message,'error'); }
   }
