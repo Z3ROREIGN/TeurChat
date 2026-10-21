@@ -51,23 +51,39 @@
     updateAccountUI();
   }
   async function loadProfile() {
-    if (!state.session?.user) { state.profile = null; state.badges = []; return; }
-    const user = state.session.user;
-    let { data, error } = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url').eq('id',user.id).maybeSingle();
-    if (error) throw error;
-    if (!data) {
+    const user = state.session?.user;
+    if (!user) { state.profile = null; state.badges = []; return; }
+    const columns = 'id,username,display_name,bio,avatar_url';
+    let result = await state.client.from('profiles').select(columns).eq('id', user.id).maybeSingle();
+    if (result.error) throw result.error;
+    let profile = result.data;
+    if (!profile) {
       const meta = user.user_metadata || {};
-      const base = String(meta.username || user.id.replace(/-/g,'').slice(0,12)).toLowerCase().replace(/[^a-z0-9_]/g,'').slice(0,24) || 'usuario';
-      const username = base.length >= 3 ? base : ('user_' + base).slice(0,24);
-      const display_name = String(meta.display_name || username).trim().slice(0,40) || username;
-      const created = await state.client.from('profiles').upsert({id:user.id,username,display_name,bio:''},{onConflict:'id'}).select('id,username,display_name,bio,avatar_url').single();
+      const base = String(meta.username || ('user_' + user.id.replace(/-/g,'').slice(0,10))).toLowerCase().replace(/[^a-z0-9_]/g,'').slice(0,24);
+      const candidate = base.length >= 3 ? base : 'user_' + user.id.replace(/-/g,'').slice(0,10);
+      const display = String(meta.display_name || candidate).trim().slice(0,40) || candidate;
+      let created = await state.client.from('profiles').upsert({id:user.id, username:candidate, display_name:display, bio:''}, {onConflict:'id'}).select(columns).maybeSingle();
+      if (created.error && created.error.code === '23505') {
+        const uniqueName = ('user_' + user.id.replace(/-/g,'').slice(-12)).slice(0,24);
+        created = await state.client.from('profiles').upsert({id:user.id, username:uniqueName, display_name:display, bio:''}, {onConflict:'id'}).select(columns).maybeSingle();
+      }
       if (created.error) throw created.error;
-      data = created.data;
+      profile = created.data;
+      if (!profile) {
+        const retry = await state.client.from('profiles').select(columns).eq('id',user.id).single();
+        if (retry.error) throw retry.error;
+        profile = retry.data;
+      }
     }
-    state.profile = data;
-    const result = await state.client.from('profile_badges').select('badge_key').eq('user_id',user.id);
-    if (result.error && result.error.code !== '42P01') throw result.error;
-    state.badges = (result.data || []).map(x => x.badge_key);
+    state.profile = profile;
+    try {
+      const badges = await state.client.from('profile_badges').select('badge_key').eq('user_id',user.id);
+      if (badges.error && badges.error.code !== '42P01') throw badges.error;
+      state.badges = (badges.data || []).map(row => row.badge_key);
+    } catch (error) {
+      console.warn('Insígnias indisponíveis:', error);
+      state.badges = [];
+    }
   }
   function updateAccountUI() {
     const p = state.profile, btn = $('#accountButton');
@@ -173,24 +189,57 @@
     }
   }
   async function submitAuth(form) {
-    const fd = new FormData(form), email = String(fd.get('email')||'').trim(), password = String(fd.get('password')||'');
+    const fd = new FormData(form);
+    const email = String(fd.get('email') || '').trim();
+    const password = String(fd.get('password') || '');
     setBusy(true);
     try {
       const mode = form.dataset.mode || 'login';
       if (mode === 'signup') {
-        const username = String(fd.get('username')||'').trim().toLowerCase().replace(/^@/,'');
-        const display_name = String(fd.get('display_name')||username).trim() || username;
+        const username = String(fd.get('username') || '').trim().toLowerCase().replace(/^@/,'');
+        const display_name = String(fd.get('display_name') || username).trim() || username;
         if (!/^[a-z0-9_]{3,24}$/.test(username)) throw new Error('Use um nome de usuário de 3 a 24 caracteres: letras, números ou _.');
-        const {data,error} = await state.client.auth.signUp({email,password,options:{data:{username,display_name}}});
-        if (error) throw error;
-        if (data.session) { state.session=data.session; await loadProfile(); closeModal(); updateAccountUI(); go('home'); notice('Conta criada com sucesso.','success'); }
-        else { closeModal(); notice('Cadastro iniciado. Confira seu e-mail para confirmar a conta.','success'); }
+        if (password.length < 6) throw new Error('A senha precisa ter pelo menos 6 caracteres.');
+        const signup = await state.client.auth.signUp({email,password,options:{data:{username,display_name}, emailRedirectTo: location.origin + '/' }});
+        if (signup.error) throw signup.error;
+        let session = signup.data.session;
+        if (!session) {
+          // If email confirmation is disabled, immediately establish a session. If enabled, Supabase requires verification.
+          const login = await state.client.auth.signInWithPassword({email,password});
+          if (!login.error && login.data.session) session = login.data.session;
+          else {
+            notice('Conta criada! Para proteger sua conta, confirme o e-mail enviado e depois entre com seus dados.', 'success');
+            $('#authTitle').textContent = 'Confirme seu e-mail';
+            const hint = $('#authForm .muted.small');
+            if (hint) hint.textContent = 'O Supabase exige confirmação de e-mail nesta configuração. Depois de confirmar, entre com o mesmo e-mail e senha.';
+            form.dataset.mode = 'login';
+            $('#signupFields').hidden = true;
+            $('#authSubmit').textContent = 'Entrar';
+            $('[data-auth-mode]').forEach(b => b.classList.toggle('active', b.dataset.authMode === 'login'));
+            return;
+          }
+        }
+        state.session = session;
+        await loadProfile();
+        closeModal();
+        updateAccountUI();
+        go('home');
+        notice('Conta criada e sessão iniciada. Bem-vindo ao TeurChat!', 'success');
       } else {
-        const {data,error} = await state.client.auth.signInWithPassword({email,password});
-        if (error) throw error; state.session=data.session; await loadProfile(); closeModal(); updateAccountUI(); go('home'); notice('Você entrou no TeurChat.','success');
+        const login = await state.client.auth.signInWithPassword({email,password});
+        if (login.error) throw login.error;
+        state.session = login.data.session;
+        await loadProfile();
+        closeModal();
+        updateAccountUI();
+        go('home');
+        notice('Você entrou no TeurChat.', 'success');
       }
-    } catch(e) { notice(e.message || 'Não foi possível entrar.','error'); }
-    finally { setBusy(false); }
+    } catch(e) {
+      console.error('Autenticação TeurChat:', e);
+      const message = e.message || 'Não foi possível concluir a autenticação.';
+      notice(message, 'error');
+    } finally { setBusy(false); }
   }
   async function publishPost(form) {
     if (!authRequired()) return;
@@ -236,18 +285,41 @@
     finally{setBusy(false);}
   }
   async function editProfile() {
-    if(!authRequired()) return;
-    const p=state.profile||{};
-    $('#modalBody').innerHTML='<div class="modal-head"><div><p class="eyebrow">SUA CONTA</p><h2>Editar perfil</h2></div><button class="icon-btn" data-action="close-modal">×</button></div><form id="profileForm"><label>Nome exibido<input name="display_name" required maxlength="40" value="'+esc(p.display_name||'')+'"></label><label>Bio<textarea name="bio" maxlength="180" rows="3">'+esc(p.bio||'')+'</textarea></label><button class="btn primary full" type="submit" data-busy>Salvar alterações</button></form>';
-    $('#modal').dataset.kind='profile'; $('#modal').classList.add('open'); $('#modal').setAttribute('aria-hidden','false');
+    if (!authRequired()) return;
+    try { if (!state.profile) await loadProfile(); } catch (e) { notice('Não foi possível carregar seu perfil: ' + e.message, 'error'); return; }
+    const p = state.profile || {};
+    $('#modalBody').innerHTML = '<div class="modal-head"><div><p class="eyebrow">SUA CONTA</p><h2>Editar perfil</h2></div><button class="icon-btn" data-action="close-modal" aria-label="Fechar">×</button></div><form id="profileForm"><label>Nome exibido<input name="display_name" required maxlength="40" value="' + esc(p.display_name || '') + '"></label><label>Nome de usuário<input name="username" required minlength="3" maxlength="24" pattern="[a-zA-Z0-9_]{3,24}" value="' + esc(p.username || '') + '"><span class="muted small">3 a 24 letras, números ou _.</span></label><label>Biografia<textarea name="bio" maxlength="180" rows="3" placeholder="Conte um pouco sobre você…">' + esc(p.bio || '') + '</textarea></label><label>URL da foto de perfil<input name="avatar_url" type="url" maxlength="500" placeholder="https://…" value="' + esc(p.avatar_url || '') + '"></label><p class="muted small">Seu e-mail não aparece no perfil público.</p><button class="btn primary full" type="submit" data-busy>Salvar alterações</button></form>';
+    $('#modal').dataset.kind = 'profile';
+    $('#modal').classList.add('open');
+    $('#modal').setAttribute('aria-hidden','false');
   }
   async function submitProfile(form) {
-    const fd=new FormData(form), updates={display_name:String(fd.get('display_name')||'').trim(),bio:String(fd.get('bio')||'').trim()};
-    if(!updates.display_name){notice('Informe um nome.');return;}
+    const fd = new FormData(form);
+    const display_name = String(fd.get('display_name') || '').trim().slice(0,40);
+    const username = String(fd.get('username') || '').trim().toLowerCase().replace(/^@/,'');
+    const bio = String(fd.get('bio') || '').trim().slice(0,180);
+    const avatar_url = String(fd.get('avatar_url') || '').trim();
+    if (!display_name) { notice('Informe seu nome de exibição.', 'error'); return; }
+    if (!/^[a-z0-9_]{3,24}$/.test(username)) { notice('O nome de usuário deve ter 3 a 24 caracteres: letras, números ou _.', 'error'); return; }
+    if (avatar_url && !/^https:\/\//i.test(avatar_url)) { notice('A foto precisa usar um endereço HTTPS.', 'error'); return; }
     setBusy(true);
-    try{const {error}=await state.client.from('profiles').update(updates).eq('id',state.session.user.id);if(error)throw error;await loadProfile();closeModal();updateAccountUI();await renderPage();notice('Perfil atualizado.','success');}
-    catch(e){notice('Não foi possível salvar o perfil: '+e.message,'error');}
-    finally{setBusy(false);}
+    try {
+      const updates = {display_name, username, bio, avatar_url: avatar_url || null};
+      const {data,error} = await state.client.from('profiles').update(updates).eq('id',state.session.user.id).select('id,username,display_name,bio,avatar_url').single();
+      if (error) {
+        if (error.code === '23505') throw new Error('Esse nome de usuário já está em uso. Escolha outro.');
+        throw error;
+      }
+      state.profile = data;
+      await loadProfile();
+      closeModal();
+      updateAccountUI();
+      await renderPage();
+      notice('Perfil atualizado com sucesso.', 'success');
+    } catch(e) {
+      console.error('Erro ao salvar perfil:', e);
+      notice('Não foi possível salvar o perfil: ' + (e.message || 'erro inesperado'), 'error');
+    } finally { setBusy(false); }
   }
   async function searchProfiles(term) {
     const out=$('#peopleResults'); if(!term.trim()){out.innerHTML='<p class="muted">Digite um nome de usuário ou nome para buscar.</p>';return;}
