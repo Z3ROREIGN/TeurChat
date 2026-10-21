@@ -15,10 +15,10 @@
   const authRequired = () => { if (!isSignedIn()) { openModal('auth'); notice('Entre na sua conta para continuar.'); return false; } return true; };
   const setBusy = (yes) => { state.busy = yes; $$('[data-busy]').forEach(b => { b.disabled = yes; }); };
   function go(page) {
-    const allowed = ['home','explore','saved','messages','profile','notifications','admin'];
+    const allowed = ['home','explore','saved','messages','profile','notifications','admin','support'];
     state.page = allowed.includes(page) ? page : 'home';
     $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.go === state.page));
-    $('#pageTitle').textContent = ({home:'Início',explore:'Explorar',saved:'Salvos',messages:'Mensagens',profile:'Meu perfil',notifications:'Notificações',admin:'Administração'})[state.page];
+    $('#pageTitle').textContent = ({home:'Início',explore:'Explorar',saved:'Salvos',messages:'Mensagens',profile:'Meu perfil',notifications:'Notificações',admin:'Administração',support:'Central de ajuda'})[state.page];
     const adminNav = $('#adminNav'); if (adminNav) adminNav.hidden = !state.isAdmin;
     renderPage().catch(e => { console.error(e); notice('Não foi possível abrir esta área: ' + (e.message || 'erro')); });
   }
@@ -205,6 +205,7 @@
       if(error) throw error; $('#myPosts').innerHTML=data?.length?data.map(renderPost).join(''):'<p class="muted">Você ainda não publicou nada.</p>'; return;
     }
     if (state.page === 'admin') { if (!state.isAdmin) { notice('Esta área é exclusiva da administração.', 'error'); go('home'); return; } await renderAdminPage(); return; }
+    if (state.page === 'support') { await renderSupportPage(); return; }
     if (state.page === 'messages') {
       if (!authRequired()) { go('home'); return; }
       $('#content').innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('message') + '</div><h2>Suas conversas</h2><p>Para começar, encontre uma pessoa em Explorar e abra o perfil dela. A área de mensagens depende das permissões de conversas do banco.</p><button class="btn primary" data-go="explore">Encontrar pessoas</button></section>'; return;
@@ -213,6 +214,22 @@
       if (!authRequired()) { go('home'); return; }
       $('#content').innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('bell') + '</div><h2>Notificações</h2><p>Você verá novidades da sua conta aqui quando houver notificações disponíveis.</p><button class="btn secondary" data-action="refresh">Atualizar</button></section>'; return;
     }
+  }
+  async function renderSupportPage() {
+    if(!authRequired()){go('home');return;}
+    $('#content').innerHTML='<section class="panel"><p class="eyebrow">ATENDIMENTO TEURCHAT</p><h2>Central de ajuda</h2><p class="muted">Suporte, denúncias, problemas técnicos e recursos de moderação.</p><form id="caseForm"><label>Categoria<select name="category" required><option value="support">Suporte geral</option><option value="report">Denúncia de usuário ou conteúdo</option><option value="bug">Problema técnico</option><option value="appeal">Recurso de moderação</option></select></label><label>Assunto<input name="subject" required minlength="3" maxlength="120"></label><label>Detalhes<textarea name="message" required minlength="10" maxlength="4000" rows="5" placeholder="Explique a situação. Não envie senhas ou dados financeiros."></textarea></label><label>Usuário relacionado (opcional)<input name="target_username" maxlength="24" placeholder="@usuario"></label><label>Link relacionado (opcional)<input name="target_url" type="url" maxlength="1000"></label><button class="btn primary" type="submit" data-busy>Enviar chamado</button></form></section><section class="panel"><h3>Meus chamados</h3><button class="btn secondary" data-action="support-refresh">Atualizar</button><div id="myCases">Carregando…</div></section>';
+    await loadMyCases();
+  }
+  async function loadMyCases() {
+    const box=$('#myCases');if(!box||!state.session?.user)return;
+    const {data,error}=await state.client.from('community_cases').select('id,category,subject,message,status,resolution,created_at').eq('user_id',state.session.user.id).order('created_at',{ascending:false}).limit(50);
+    if(error)throw error;
+    box.innerHTML=(data||[]).length?data.map(c=>'<article class="case-card"><strong>'+esc(c.subject)+'</strong><p class="muted small">'+esc(({support:'Suporte',report:'Denúncia',bug:'Bug',appeal:'Recurso'}[c.category]||c.category))+' · '+esc(({open:'Aberto',in_progress:'Em andamento',waiting_user:'Aguardando você',resolved:'Resolvido',closed:'Encerrado'}[c.status]||c.status))+'</p><p>'+esc(c.message)+'</p>'+(c.resolution?'<p><strong>Resposta da equipe:</strong> '+esc(c.resolution)+'</p>':'')+'</article>').join(''):'<p class="muted">Você ainda não abriu chamados.</p>';
+  }
+  async function submitCase(form) {
+    if(!authRequired())return;const fd=new FormData(form);setBusy(true);
+    try{const {data,error}=await state.client.rpc('submit_community_case',{case_category:String(fd.get('category')),case_subject:String(fd.get('subject')).trim(),case_message:String(fd.get('message')).trim(),case_target_username:String(fd.get('target_username')||'').trim().replace(/^@/,'')||null,case_target_url:String(fd.get('target_url')||'').trim()||null});if(error)throw error;form.reset();notice('Chamado enviado. Protocolo: '+String(data).slice(0,8).toUpperCase(),'success');await loadMyCases();}
+    catch(e){notice(e.message||'Não foi possível enviar o chamado.','error');}finally{setBusy(false);}
   }
   async function renderAdminPage() {
     if (!state.isAdmin) throw new Error('Acesso restrito à administração.');
@@ -424,6 +441,7 @@
     const id=el.dataset.id;
     if(action==='admin-panel') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); go('admin'); return; }
     if(action==='admin-refresh') return renderAdminPage();
+    if(action==='support-refresh') return loadMyCases();
     if(action==='admin-badge') return adminBadge(id,el.dataset.username);
     if(action==='admin-remove-badge') return adminRemoveBadge(id,el.dataset.username);
     if(action==='admin-delete-comment') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); if(!confirm('Excluir este comentário?'))return; const {error}=await state.client.rpc('admin_delete_comment',{target_comment:id}); if(error)throw error; notice('Comentário removido.','success'); const postId=$('#commentForm')?.dataset.postId; if(postId) await loadComments(postId); await renderPage(); return; }
@@ -461,6 +479,7 @@
     if(form.id==='postForm'){e.preventDefault();await publishPost(form);}
     if(form.id==='commentForm'){e.preventDefault();await submitComment(form);}
     if(form.id==='profileForm'){e.preventDefault();await submitProfile(form);}
+    if(form.id==='caseForm'){e.preventDefault();await submitCase(form);}
     if(form.id==='searchForm'){e.preventDefault();state.search=$('#searchInput').value.trim();state.page='explore';go('explore');}
     if(form.id==='peopleSearchForm'){e.preventDefault();await searchProfiles($('#peopleSearch').value);}
   });
