@@ -15,12 +15,50 @@
 @media(max-width:680px){.shell{display:block;padding:0}.sidebar{display:none}.main{border:0;min-height:100dvh}.topbar{padding:15px 16px}.topbar h1{font-size:19px}#content{padding:13px 12px 100px}.feed-filters{padding:10px 12px}.search-bar{padding:12px}.post-card,.panel,.profile-card{padding:15px;border-radius:15px}.post-actions{justify-content:space-between;gap:2px}.action{padding:8px 5px;font-size:11px}.action span{font-size:15px}.mobile-nav{position:fixed;bottom:0;left:0;right:0;z-index:10;display:grid;grid-template-columns:repeat(5,1fr);padding:8px 5px calc(8px + env(safe-area-inset-bottom));background:rgba(12,13,16,.96);border-top:1px solid var(--line);backdrop-filter:blur(15px)}.mobile-nav .nav-item{flex-direction:column;justify-content:center;gap:3px;padding:7px 2px;font-size:10px;border-radius:10px}.mobile-nav .nav-item .ico{font-size:19px}.top-actions .btn{padding:9px 10px;font-size:12px}.modal{padding:10px}.modal-card{padding:18px;border-radius:18px}.notice{bottom:calc(78px + env(safe-area-inset-bottom))}.post-body{font-size:14px}}
 
 .post-media{display:block;width:100%;max-height:70vh;object-fit:contain;background:#050506;border-radius:14px;margin:12px 0 16px}.post-title{font-size:18px;line-height:1.35;margin:14px 0 8px;overflow-wrap:anywhere}.avatar-button,.profile-open{border:0;background:transparent;color:inherit;text-align:left;padding:0;cursor:pointer}.avatar-button{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex:0 0 auto}.profile-open:hover strong,.post-author:hover strong{ text-decoration:underline}.comment-list{display:grid;gap:12px;max-height:42vh;overflow:auto;margin-bottom:18px}.comment-row{display:flex;align-items:flex-start;gap:10px;border-bottom:1px solid var(--line);padding:10px 0}.comment-row>div{min-width:0;flex:1}.comment-row strong{font-size:13px}.comment-row strong span{font-weight:400;color:var(--muted);font-size:11px}.comment-row p{margin:5px 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.5}.comment-row small{font-size:10px;color:var(--muted)}.post-author{display:grid;gap:3px;min-width:0}.post-author strong,.post-author span{display:block}
+
+/* TeurChat visual system refresh */
+[hidden]{display:none!important}
+:root{--bg:#070809;--panel:#0e1013;--panel2:#15181d;--line:#252a31;--text:#f6f7f8;--muted:#a0a6b0;--accent:#f4f5f6;--accentText:#111318;--radius:17px}
+body{background:radial-gradient(ellipse at 50% -20%,#181b20 0,transparent 46%),var(--bg);letter-spacing:-.01em}
+.shell{max-width:1380px;grid-template-columns:250px minmax(0,760px) 280px;gap:24px;padding:0 24px}
+.brand{gap:12px;font-size:23px;letter-spacing:-.9px}.brand-mark{padding:0;background:transparent;border-radius:12px;overflow:hidden}.brand-mark img{display:block;border-radius:12px;object-fit:cover}
+.brand small{letter-spacing:1.05px;font-size:9px;font-weight:700;color:#858c97}
+.nav-list{gap:5px}.nav-item{border-radius:12px;padding:12px 13px;gap:13px;color:#a8aeb8}.nav-item.active{box-shadow:inset 2px 0 #f4f5f6;background:#171a1f;border-color:#2d323a}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;border-radius:11px;letter-spacing:-.01em}.btn.primary{box-shadow:0 5px 18px #ffffff0a}.btn.danger{background:#2a1518;border-color:#5b2a31;color:#ffb5bd}
+.icon-btn{font-size:0}.icon-btn .svg-icon{width:18px;height:18px}
+.topbar{padding:21px 25px;background:rgba(7,8,9,.88);border-bottom-color:#24282f}.topbar h1{font-size:22px;font-weight:750;letter-spacing:-.7px}
+.main{border-color:#22262c}.feed-filters,.search-bar{border-color:#22262c}.filter{padding:9px 14px}.filter.active{background:#1b1e23}
+#content{padding:20px 20px 100px}.post-card,.panel,.profile-card{background:linear-gradient(145deg,#111317,#0d0f12);border-color:#272c34;box-shadow:0 12px 30px #00000016}
+.post-card{padding:19px;transition:border-color .18s,transform .18s}.post-card:hover{border-color:#3a404a}
+.post-media{max-height:min(72vh,780px);border:1px solid #22262d;background:#030405;object-fit:contain}
+.post-title{font-size:19px;font-weight:760;letter-spacing:-.4px}.post-body{color:#e0e3e8;line-height:1.72}
+.action{min-height:36px;font-weight:650}.action .svg-icon{width:17px;height:17px}.action.selected{color:#fff;background:#22262d}
+.avatar{overflow:hidden;background:linear-gradient(135deg,#292e36,#15181d);border-color:#393f49}.avatar img{display:block}
+.right-card{background:linear-gradient(145deg,#111317,#0c0e11);border-color:#272c34}
+.modal-card{background:#101216;border-color:#2b3038}
+.field,input,textarea{background:#0a0c0f;border-color:#2b3038;transition:border-color .15s,box-shadow .15s}
+input:focus,textarea:focus{border-color:#8c949f;box-shadow:0 0 0 3px #ffffff0b;outline:0}
+.profile-cover{height:122px;background:radial-gradient(circle at 80% 15%,#343943,transparent 40%),linear-gradient(115deg,#252a32,#111317 70%);border-bottom:1px solid #30343b}
+.profile-info h2{letter-spacing:-.6px;font-size:23px}.profile-info .btn{margin-right:6px;margin-bottom:6px}
+.empty-mark{background:#1b1e23;color:#e8ebef;border:1px solid #2b3038}.empty-mark .svg-icon{width:23px;height:23px}
+.admin-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:25px;margin-bottom:15px;border:1px solid #343a44;border-radius:18px;background:radial-gradient(circle at 100% 0,#303640 0,transparent 44%),linear-gradient(135deg,#171a1f,#0d0f12)}
+.admin-hero h2{font-size:24px;letter-spacing:-.7px;margin:0 0 8px}.admin-hero p:not(.eyebrow){color:#b5bbc4;font-size:13px;line-height:1.65;max-width:480px;margin:0}
+.admin-shield{width:54px;height:54px;display:grid;place-items:center;border:1px solid #555d68;border-radius:16px;background:#242932}.admin-shield .svg-icon{width:27px;height:27px}
+.admin-tools{padding:18px}.admin-toolbar{display:flex;gap:9px;margin-bottom:12px}.admin-toolbar input{min-width:0;flex:1}
+.admin-user{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:15px;padding:16px 0;border-top:1px solid #252a31}
+.admin-user-main{display:flex;align-items:flex-start;gap:12px;min-width:0}.admin-user-copy{min-width:0;flex:1}.admin-user-copy>strong,.admin-user-copy>span{display:block;overflow-wrap:anywhere}.admin-user-copy>strong{font-size:14px}.admin-user-copy>span{font-size:12px;color:var(--muted);margin-top:3px}
+.admin-user-copy .profile-badges{margin:8px 0}.admin-user-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.admin-user-actions .btn{font-size:12px;padding:8px 10px;min-height:36px}.ban-status{display:flex;gap:5px;align-items:flex-start;color:#ff9da6;font-size:12px;line-height:1.5;overflow-wrap:anywhere}.ban-status .svg-icon{width:14px;height:14px;flex:0 0 auto}
+.mobile-nav{background:rgba(9,10,12,.96);border-top-color:#2a2e35}.mobile-nav .nav-item .ico .svg-icon{width:20px;height:20px}
+@media(max-width:1150px){.shell{grid-template-columns:215px minmax(0,1fr);gap:0;padding:0 14px}.rightbar{display:none}.sidebar{padding-right:14px}.main{border-right:0}}
+@media(max-width:680px){.shell{padding:0}.topbar{padding:14px 14px}.topbar h1{font-size:19px}.top-actions{gap:6px}.top-actions .btn{min-height:38px}.feed-filters{padding:10px 12px}#content{padding:12px 10px 100px}.post-card,.panel,.profile-card{padding:14px;margin-bottom:12px}.post-media{max-height:64vh;border-radius:12px}.post-title{font-size:17px}.post-actions{justify-content:space-between}.action{gap:4px}.admin-hero{padding:18px}.admin-hero h2{font-size:20px}.admin-shield{width:44px;height:44px;flex:0 0 auto}.admin-toolbar{align-items:stretch}.admin-toolbar .btn{padding:8px 10px}.admin-user{grid-template-columns:1fr;gap:11px}.admin-user-actions{justify-content:flex-start}.admin-user-actions .btn{flex:1}.profile-info .btn{margin-top:5px}.modal-card{max-height:calc(100dvh - 24px)}}
+@media(min-width:681px){.mobile-nav{display:none!important}}
+
 </style>
 </head>
 <body>
 <div class="shell">
   <aside class="sidebar">
-    <a class="brand" href="/" aria-label="TeurChat início"><span class="brand-mark">T</span><span>TeurChat<small>SUA COMUNIDADE, DE VERDADE</small></span></a>
+    <a class="brand" href="/" aria-label="TeurChat início"><span class="brand-mark"><img src="/assets/teurchat-logo.svg" alt="" width="38" height="38"></span><span>TeurChat<small>SUA COMUNIDADE, DE VERDADE</small></span></a>
     <nav class="nav-list" aria-label="Navegação principal">
       <button class="nav-item active" data-go="home"><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>Início</button>
       <button class="nav-item" data-go="explore"><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span>Explorar</button>
@@ -29,13 +67,14 @@
       <button class="nav-item" data-go="saved"><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 4h12v17l-6-4-6 4z"/></svg></span>Salvos</button>
       <button class="nav-item" data-go="notifications"><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></span>Notificações</button>
       <button class="nav-item" data-go="profile"><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Meu perfil</button>
+      <button class="nav-item" id="adminNav" data-go="admin" hidden><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11z"/><path d="m9 12 2 2 4-4"/></svg></span>Administração</button>
     </nav>
     <button class="btn primary" id="composeButton" data-action="compose">＋ Criar publicação</button>
     <button class="account-button" id="accountButton" data-action="auth"><span class="avatar tiny">↗</span><span class="account-label">Entrar</span></button>
     <div class="session-box"><strong>TeurChat</strong><br><span id="sessionHint">Entre para publicar, curtir e conversar.</span></div>
   </aside>
   <main class="main">
-    <header class="topbar"><h1 id="pageTitle">Início</h1><div class="top-actions"><button class="icon-btn" data-action="refresh" aria-label="Atualizar"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 12.5-3"/></svg></button><button class="btn primary" data-action="compose">＋ Publicar</button></div></header>
+    <header class="topbar"><h1 id="pageTitle">Início</h1><div class="top-actions"><button class="icon-btn" data-action="refresh" aria-label="Atualizar"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 12.5-3"/></svg></button><button class="btn primary" data-action="compose"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Publicar</button></div></header>
     <div class="feed-filters" id="feedFilters"><button class="filter active" data-feed-mode="all">Para você</button><button class="filter" data-feed-mode="following">Seguindo</button></div>
     <div class="search-bar" id="searchBar" hidden><form id="searchForm" class="search-form"><input id="searchInput" placeholder="Buscar publicações..." aria-label="Buscar publicações"><button class="btn primary" type="submit">Buscar</button><button class="btn secondary" type="button" data-action="open-people">Pessoas</button></form></div>
     <section id="content" aria-live="polite"><div class="loading"><span class="spinner"></span>Iniciando o TeurChat…</div></section>
@@ -47,16 +86,16 @@
   </aside>
 </div>
 <nav class="mobile-nav" aria-label="Navegação móvel">
-  <button class="nav-item active" data-go="home"><span class="ico">⌂</span>Início</button>
-  <button class="nav-item" data-go="explore"><span class="ico">⌕</span>Explorar</button>
+  <button class="nav-item active" data-go="home"><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>Início</button>
+  <button class="nav-item" data-go="explore"><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span>Explorar</button>
   <button class="nav-item" data-action="compose"><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>Publicar</button>
-  <button class="nav-item" data-go="messages"><span class="ico">▱</span>Mensagens</button>
-  <button class="nav-item" data-go="profile"><span class="ico">◉</span>Perfil</button>
+  <button class="nav-item" data-go="messages"><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 21l1.9-5.5a9 9 0 0 1-.9-4A8.5 8.5 0 0 1 12.5 3H13a8.5 8.5 0 0 1 8 8z"/></svg></span>Mensagens</button>
+  <button class="nav-item" data-go="profile"><span class="ico"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Perfil</button>
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=35"></script>
-<script src="/app.js?v=35"></script>
+<script src="/config.js?v=36"></script>
+<script src="/app.js?v=36"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
