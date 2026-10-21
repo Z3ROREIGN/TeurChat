@@ -70,7 +70,7 @@
     return '<article class="post-card" data-post="' + esc(p.id) + '"><div class="post-top">' + avatar(profile) + '<div class="post-author"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + ' · ' + esc(new Date(p.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})) + '</span></div><button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">•••</button></div><div class="post-body">' + esc(p.body) + '</div>' + (p.media_url ? '<a class="media-link" href="' + esc(p.media_url) + '" target="_blank" rel="noopener">Abrir mídia ↗</a>' : '') + '<div class="post-actions"><button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '"><span>' + (liked?'♥':'♡') + '</span> ' + likes + '</button><button class="action" data-action="comment" data-id="' + esc(p.id) + '"><span>◯</span> ' + comments + '</button><button class="action" data-action="save" data-id="' + esc(p.id) + '"><span>◇</span> Salvar</button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '"><span>↗</span> Compartilhar</button></div></article>';
   }
   async function fetchPosts() {
-    let query = state.client.from('posts').select('id,user_id,body,media_url,created_at,profiles(username,display_name,avatar_url),likes(user_id),comments(id)').order('created_at',{ascending:false}).limit(40);
+    let query = state.client.from('posts').select('id,user_id,body,media_url,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').order('created_at',{ascending:false}).limit(40);
     if (state.page === 'explore' && state.search) query = query.ilike('body','%' + state.search.replace(/[%_]/g,'') + '%');
     if (state.feed === 'following' && isSignedIn()) {
       const {data: follows, error: fErr} = await state.client.from('follows').select('followed_id').eq('follower_id',state.session.user.id);
@@ -109,7 +109,7 @@
         if (error) { $('#content').innerHTML='<div class="empty-state"><h2>Salvos indisponíveis</h2><p>O banco ainda não oferece a tabela de salvos. '+esc(error.message)+'</p></div>'; return; }
         const ids = (data||[]).map(x=>x.post_id);
         if (!ids.length) { $('#content').innerHTML='<div class="empty-state"><h2>Nenhuma publicação salva</h2><p>Use “Salvar” em uma publicação para encontrá-la aqui.</p></div>'; return; }
-        const {data:posts,error:e} = await state.client.from('posts').select('id,user_id,body,media_url,created_at,profiles(username,display_name,avatar_url),likes(user_id),comments(id)').in('id',ids).order('created_at',{ascending:false});
+        const {data:posts,error:e} = await state.client.from('posts').select('id,user_id,body,media_url,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').in('id',ids).order('created_at',{ascending:false});
         if (e) throw e; state.posts=posts||[]; $('#content').innerHTML=state.posts.map(renderPost).join(''); return;
       }
       await renderFeed(); return;
@@ -119,7 +119,7 @@
       if (!authRequired()) { go('home'); return; }
       const p = state.profile || {};
       $('#content').innerHTML = '<section class="profile-card"><div class="profile-cover"></div><div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || 'Meu perfil') + '</h2><p>@' + esc(p.username || 'usuario') + '</p><p>' + esc(p.bio || 'Adicione uma descrição ao seu perfil.') + '</p><button class="btn secondary" data-action="edit-profile">Editar perfil</button><button class="btn secondary" data-action="signout">Sair da conta</button></div></section><section class="panel"><h3>Minhas publicações</h3><div id="myPosts"><div class="loading">Carregando…</div></div></section>';
-      const {data,error}=await state.client.from('posts').select('id,user_id,body,media_url,created_at,profiles(username,display_name,avatar_url),likes(user_id),comments(id)').eq('user_id',state.session.user.id).order('created_at',{ascending:false}).limit(30);
+      const {data,error}=await state.client.from('posts').select('id,user_id,body,media_url,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url),likes(user_id),comments(id)').eq('user_id',state.session.user.id).order('created_at',{ascending:false}).limit(30);
       if(error) throw error; $('#myPosts').innerHTML=data?.length?data.map(renderPost).join(''):'<p class="muted">Você ainda não publicou nada.</p>'; return;
     }
     if (state.page === 'messages') {
