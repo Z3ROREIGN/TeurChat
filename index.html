@@ -139,6 +139,29 @@ body{background:#090a0b;letter-spacing:0}
  .mobile-nav{grid-template-columns:repeat(6,minmax(0,1fr));border-top:1px solid #292a2d}
 }
 
+
+/* Creator-first refresh: clean surfaces, readable metrics, mobile chat media */
+:root{--bg:#08090a;--panel:#101112;--panel2:#191a1c;--line:#292a2c;--text:#f6f6f6;--muted:#a0a0a5;--radius:11px}
+body{background:var(--bg)}
+.shell{max-width:1400px;grid-template-columns:225px minmax(0,740px) 250px;gap:18px}
+.post-card,.panel,.profile-card,.right-card{background:#101112;border:1px solid #292a2c;box-shadow:none;border-radius:11px}
+.post-card{padding:15px;margin-bottom:13px}.post-card:hover{transform:none;border-color:#3a3b3e}
+.topbar{background:#08090af5;border-bottom:1px solid #292a2c}
+.nav-item,.btn,.icon-btn,.filter,.profile-badge{box-shadow:none!important}
+.nav-item{border-radius:8px}.nav-item.active{background:#1c1d1f;border-color:#333437;box-shadow:none}
+.btn{border-radius:8px}.btn.primary{background:#f2f2f2;color:#111;border-color:#f2f2f2}.btn.secondary{background:#191a1c;border-color:#303135;color:#f1f1f1}
+.post-media{border:0;border-radius:8px;max-height:min(76vh,820px)}.post-actions{border-color:#2a2b2e}
+.profile-cover{background:#191a1c;border-radius:11px 11px 0 0}.profile-info h2{font-size:22px}
+.profile-stats{display:flex;gap:20px;flex-wrap:wrap}.profile-stats button,.profile-stats>span{display:flex;flex-direction:column;align-items:flex-start;gap:3px}.profile-stats strong{font-size:17px;font-weight:750}.profile-stats span{font-size:11px;color:var(--muted)}
+.chat-layout{grid-template-columns:250px minmax(0,1fr);border-radius:11px;background:#101112;border-color:#292a2c}.chat-sidebar{border-color:#292a2c}.chat-person{border-color:#292a2c;border-radius:7px}.chat-window{background:#101112}
+.chat-bubble{border-radius:11px;background:#202123;border-color:#303135}.chat-bubble.mine{background:#ededed;color:#111;border-color:#ededed}.chat-compose{border-color:#292a2c}
+.chat-attach{flex:0 0 38px;height:38px;display:grid;place-items:center;border:1px solid #353639;border-radius:8px;background:#191a1c;color:#fff;font-size:23px;cursor:pointer}.chat-attach input{display:none}
+.chat-media-hint{font-size:10px;color:#8d8d93;padding:0 12px 10px;margin:0}
+.chat-attachment{display:block;width:min(100%,340px);max-height:420px;object-fit:contain;border-radius:8px;background:#050505;margin-bottom:7px}
+.chat-bubble p{overflow-wrap:anywhere}.admin-stat,.admin-tool-button{box-shadow:none;border-radius:8px}
+@media(max-width:1150px){.shell{grid-template-columns:200px minmax(0,1fr);gap:10px;padding:0 12px}}
+@media(max-width:680px){.shell{display:block;padding:0}.sidebar,.rightbar{display:none}.main{border:0}.chat-layout{display:flex;flex-direction:column;min-height:0;height:auto}.chat-sidebar{max-height:225px;border-right:0;border-bottom:1px solid #292a2c}.chat-window{height:55vh;min-height:350px}.chat-compose{gap:6px;padding:8px}.chat-compose textarea{font-size:13px}.chat-compose .btn{min-height:38px;padding:8px 10px}.chat-attach{flex-basis:36px;height:36px}.chat-media-hint{padding-bottom:7px}.profile-stats{gap:15px}.profile-stats strong{font-size:16px}}
+
 </style>
 </head>
 <body>
@@ -182,8 +205,8 @@ body{background:#090a0b;letter-spacing:0}
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=38"></script>
-<script src="/app.js?v=38"></script>
+<script src="/config.js?v=39"></script>
+<script src="/app.js?v=39"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
