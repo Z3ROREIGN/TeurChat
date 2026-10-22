@@ -243,7 +243,11 @@
     const likes = p.likes?.length || 0, comments = p.comments?.length || 0;
     const type = p.media_type || (/\.(mp4|webm|mov)(\?|$)/i.test(p.media_url || '') ? 'video' : 'image');
     const isReel = ['home','explore'].includes(state.page) && !!p.media_url;
-    const author = '<button class="avatar-button" data-action="view-profile" data-id="' + esc(p.user_id) + '" aria-label="Ver perfil">' + avatar(profile) + '</button><button class="post-author profile-open" data-action="view-profile" data-id="' + esc(p.user_id) + '"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + '</span></button>';
+    const authorName = profile.display_name || profile.username || 'Usuário TeurChat';
+    const authorUsername = profile.username || '';
+    const authorAvatar = profile.avatar_url || '';
+    const profileData = ' data-username="' + esc(authorUsername) + '" data-display-name="' + esc(authorName) + '" data-avatar-url="' + esc(authorAvatar) + '"';
+    const author = '<button class="avatar-button" data-action="view-profile" data-id="' + esc(p.user_id) + '"' + profileData + ' aria-label="Ver perfil">' + avatar(profile) + '</button><button class="post-author profile-open" data-action="view-profile" data-id="' + esc(p.user_id) + '"' + profileData + '><strong>' + esc(authorName) + '</strong><span>@' + esc(authorUsername || 'usuario') + '</span></button>';
     const media = p.media_url ? (type === 'video' ? '<video class="post-media' + (isReel?' reel-media':'') + '" src="' + esc(p.media_url) + '" ' + (isReel?'autoplay muted loop':'controls') + ' playsinline preload="metadata"></video>' : '<img class="post-media' + (isReel?' reel-image':'') + '" src="' + esc(p.media_url) + '" alt="' + esc(p.title || 'Foto da publicação') + '" loading="lazy">') : '';
     const actions = '<button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '" aria-label="Curtir" aria-pressed="' + (liked?'true':'false') + '"><span>' + svgIcon('heart') + '</span><b>' + likes + '</b></button><button class="action" data-action="comment" data-id="' + esc(p.id) + '" aria-label="Comentários"><span>' + svgIcon('comment') + '</span><b>' + comments + '</b></button><button class="action" data-action="save" data-id="' + esc(p.id) + '" aria-label="Salvar"><span>' + svgIcon('bookmark') + '</span><b>Salvar</b></button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '" aria-label="Compartilhar"><span>' + svgIcon('share') + '</span><b>Enviar</b></button>';
     if (isReel) {
@@ -257,7 +261,7 @@
     if (error) throw error;
     box.innerHTML = data?.length ? data.map(x => '<article class="comment-row">' + avatar(x.profiles || {}) + '<div><strong>' + esc(x.profiles?.display_name || x.profiles?.username || 'Usuário') + ' <span>@' + esc(x.profiles?.username || 'usuario') + '</span></strong><p>' + esc(x.body) + '</p><small>' + esc(new Date(x.created_at).toLocaleString('pt-BR')) + '</small>' + (state.isAdmin ? '<button class="action" data-action="admin-delete-comment" data-id="' + esc(x.id) + '">' + svgIcon('close') + ' Remover</button>' : '') + '</div></article>').join('') : '<p class="muted">Ainda não há comentários. Seja a primeira pessoa a comentar.</p>';
   }
-  async function openUserProfile(userId) {
+  async function openUserProfile(userId, fallback = {}) {
     if (!userId || !state.client) throw new Error('Não foi possível identificar o dono desta publicação.');
     const viewToken = ++state.profileViewToken;
     state.viewedProfileId = userId;
@@ -265,12 +269,14 @@
     if (target) target.innerHTML = '<div class="loading"><span class="spinner"></span><span>Carregando perfil…</span></div>';
     const cachedPost = state.posts.find(post => String(post.user_id) === String(userId));
     const cachedProfile = cachedPost?.profiles || {};
+    const fallbackProfile = {username:fallback.username || '', display_name:fallback.displayName || '', avatar_url:fallback.avatarUrl || null};
     const {data:profileRow,error:profileError} = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url,banner_url,signup_number').eq('id',userId).maybeSingle();
     if (viewToken !== state.profileViewToken) return;
     if (profileError) console.warn('Consulta do perfil público:', profileError.message);
-    const p = profileRow || (cachedProfile.username ? {
-      id:userId, username:cachedProfile.username, display_name:cachedProfile.display_name || cachedProfile.username,
-      bio:'', avatar_url:cachedProfile.avatar_url || null, banner_url:null, signup_number:cachedProfile.signup_number || null
+    const sourceProfile = cachedProfile.username ? cachedProfile : fallbackProfile;
+    const p = profileRow || (sourceProfile.username ? {
+      id:userId, username:sourceProfile.username, display_name:sourceProfile.display_name || sourceProfile.username,
+      bio:'', avatar_url:sourceProfile.avatar_url || null, banner_url:null, signup_number:sourceProfile.signup_number || null
     } : null);
     if (!p) throw new Error('O perfil não está disponível. Atualize a página e tente novamente.');
     const {data:userBadgeRows} = await state.client.from('profile_badges').select('badge_key').eq('user_id',userId);
@@ -343,19 +349,37 @@
   let reelObserver = null;
   let feedLoadObserver = null;
   let feedLastLoadScrollY = null;
+  let feedLastObservedScrollY = window.scrollY;
+  let feedCanLoadOnScroll = false;
   function setupFeedInfiniteScroll(root) {
     if (feedLoadObserver) feedLoadObserver.disconnect();
     const sentinel = root.querySelector('.feed-sentinel');
     if (!sentinel || !('IntersectionObserver' in window) || !state.feedHasMore) return;
     feedLoadObserver = new IntersectionObserver(entries => {
-      // Only fetch another post after the person actually scrolls down.
-      // This prevents a short first video / small viewport from auto-loading the whole feed.
-      const scrolledSinceLastPost = feedLastLoadScrollY !== null && window.scrollY > feedLastLoadScrollY + 80;
-      if (entries.some(entry => entry.isIntersecting) && !state.feedLoading &&
-          (feedLastLoadScrollY === null || scrolledSinceLastPost)) loadNextFeedPost(null);
-    }, {root:null, rootMargin:'0px', threshold:0.01});
+      if (entries.some(entry => entry.isIntersecting) && feedCanLoadOnScroll && !state.feedLoading) {
+        feedCanLoadOnScroll = false;
+        loadNextFeedPost(null);
+      }
+    }, {root:null, rootMargin:'100px 0px', threshold:0.01});
     feedLoadObserver.observe(sentinel);
   }
+  window.addEventListener('scroll', () => {
+    const currentY = window.scrollY;
+    const movedDown = currentY > feedLastObservedScrollY + 24;
+    feedLastObservedScrollY = currentY;
+    if (!movedDown || !['home','explore'].includes(state.page) || state.viewedProfileId || !state.feedHasMore || state.feedLoading) return;
+    if (feedLastLoadScrollY === null || currentY > feedLastLoadScrollY + 40) {
+      feedCanLoadOnScroll = true;
+      const sentinel = $('#content .feed-sentinel');
+      if (sentinel) {
+        const rect = sentinel.getBoundingClientRect();
+        if (rect.top < window.innerHeight + 100 && rect.bottom > -100) {
+          feedCanLoadOnScroll = false;
+          loadNextFeedPost(null);
+        }
+      }
+    }
+  }, {passive:true});
   function setupReelPlayback(root) {
     if (reelObserver) reelObserver.disconnect();
     const videos = $$('video.reel-media', root);
@@ -388,6 +412,7 @@
     const target = $('#content');
     if (!target || state.feedLoading || !state.feedHasMore) return;
     state.feedLoading = true;
+    feedCanLoadOnScroll = false;
     if (button) { button.disabled = true; button.textContent = 'Carregando uma publicação…'; }
     if (feedLoadObserver) feedLoadObserver.disconnect();
     try {
@@ -405,6 +430,8 @@
       state.posts.push(next[0]);
       state.feedOffset += 1;
       feedLastLoadScrollY = window.scrollY;
+      feedLastObservedScrollY = window.scrollY;
+      feedCanLoadOnScroll = false;
       const holder = document.createElement('div');
       holder.innerHTML = renderPost(next[0]);
       const sentinel = target.querySelector('.feed-sentinel');
@@ -445,6 +472,8 @@
     state.feedLoading = false;
     state.feedHasMore = true;
     feedLastLoadScrollY = null;
+    feedLastObservedScrollY = window.scrollY;
+    feedCanLoadOnScroll = false;
     state.posts = [];
     target.innerHTML = '<div class="loading"><span class="spinner"></span><span>Carregando uma publicação…</span></div>';
     try {
@@ -1013,7 +1042,7 @@
     if(action==='like') return likePost(id);
     if(action==='save') return savePost(id);
     if(action==='comment') return openModal('comment',{postId:id});
-    if(action==='view-profile') { try { await openUserProfile(id); } catch(e) { state.viewedProfileId=null; state.profileViewToken+=1; notice('Não foi possível abrir o perfil: '+e.message,'error'); } return; }
+    if(action==='view-profile') { try { await openUserProfile(id,{username:el.dataset.username,displayName:el.dataset.displayName,avatarUrl:el.dataset.avatarUrl}); } catch(e) { console.error('Falha ao abrir perfil público:',e); state.viewedProfileId=null; state.profileViewToken+=1; const content=$('#content'); if(content) content.innerHTML='<section class="panel"><h2>Não foi possível abrir este perfil</h2><p class="muted">'+esc(e.message||'Ocorreu um erro ao carregar os dados.')+'</p><button class="btn secondary" data-action="back-feed">← Voltar ao feed</button><button class="btn primary" data-action="refresh">Tentar novamente</button></section>'; notice('Não foi possível abrir o perfil. Veja a mensagem na tela.','error'); } return; }
     if(action==='back-feed') { state.viewedProfileId=null; go('home'); return; }
     if(action==='share') { const url=location.origin+'/#post-'+id; try{if(navigator.share)await navigator.share({title:'TeurChat',url});else{await navigator.clipboard.writeText(url);notice('Link copiado.','success');}}catch(e){if(e.name!=='AbortError')notice('Não foi possível compartilhar este link.');} return; }
     if(action==='post-more') { const p=state.posts.find(x=>x.id===id); if(!p)return; if(state.isAdmin){if(!confirm('Excluir esta publicação de @'+(p.profiles?.username||'usuário')+'? Esta ação não pode ser desfeita.'))return; const {error}=await state.client.rpc('admin_delete_post',{target_post:id});if(error)throw error;notice('Publicação removida pela administração.','success');await renderPage();}else if(p.user_id===state.session?.user?.id){if(confirm('Excluir esta publicação? Esta ação não pode ser desfeita.')){const {error}=await state.client.from('posts').delete().eq('id',id).eq('user_id',state.session.user.id);if(error)notice(error.message,'error');else{notice('Publicação excluída.','success');await renderPage();}}}else return reportContent({postId:id,userId:p.user_id,username:p.profiles?.username||'usuario'}); return; }
