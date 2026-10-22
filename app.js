@@ -351,7 +351,7 @@
     state.posts = posts;
     setupReelPlayback(target);
   }
-  async async function loadNextFeedPost(button) {
+  async function loadNextFeedPost(button) {
     const target = $('#content');
     if (!target || state.feedLoading || !state.feedHasMore) return;
     state.feedLoading = true;
