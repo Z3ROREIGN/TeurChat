@@ -71,11 +71,29 @@
           state.pendingRealtimeRefresh = true;
           return;
         }
+        // Update only the visible area affected by this event; never reload the document.
+        const relevant =
+          (['home','explore'].includes(state.page) && ['posts','likes','comments','follows','profiles'].includes(table)) ||
+          (state.page === 'saved' && ['posts','bookmarks','likes','comments'].includes(table)) ||
+          (state.page === 'profile' && ['posts','likes','comments','follows','profiles'].includes(table)) ||
+          (state.page === 'notifications' && table === 'notifications') ||
+          (state.page === 'support' && table === 'community_cases') ||
+          (state.page === 'admin' && ['community_cases','reports','profiles'].includes(table));
+        if (!relevant) return;
         clearTimeout(state.realtimeTimer);
-        state.realtimeTimer = setTimeout(() => {
+        state.realtimeTimer = setTimeout(async () => {
           if (document.visibilityState !== 'visible') { state.pendingRealtimeRefresh = true; return; }
-          renderPage().catch(err => console.error('Atualização em tempo real:', err));
-        }, 250);
+          try {
+            if (state.page === 'home' || state.page === 'explore') await renderFeed();
+            else if (state.page === 'notifications') await renderNotificationsPage();
+            else if (state.page === 'support') await loadMyCases();
+            else if (state.page === 'admin') {
+              if (table === 'community_cases') await loadAdminCases();
+              else if (table === 'reports') await loadAdminReports();
+              else await renderAdminPage();
+            } else await renderPage();
+          } catch (err) { console.error('Atualização em tempo real:', err); }
+        }, 300);
       });
     });
     state.realtimeChannel = channel.subscribe(status => {
