@@ -128,8 +128,13 @@
     }
   });
   window.addEventListener('popstate', () => {
-    const requested = (location.hash || '#home').slice(1);
-    go(requested, false);
+    const hash = location.hash || '#home';
+    const shared = /^#post-([0-9a-f-]{36})$/i.exec(hash);
+    if (shared) {
+      go('home', false).then(() => openSharedPost(shared[1]).catch(e => notice('Não foi possível abrir a publicação: '+e.message,'error')));
+      return;
+    }
+    go(hash.slice(1), false);
   });
   async function loadProfile() {
     const user = state.session?.user;
@@ -241,7 +246,25 @@
     const [followers,following,followState]=await Promise.all([state.client.from('follows').select('follower_id',{count:'exact',head:true}).eq('followed_id',userId),state.client.from('follows').select('followed_id',{count:'exact',head:true}).eq('follower_id',userId),own?Promise.resolve({data:null}):state.client.from('follows').select('follower_id').eq('follower_id',state.session?.user?.id||'00000000-0000-0000-0000-000000000000').eq('followed_id',userId).maybeSingle()]);
     const followingThis=!!followState.data;
     $('#content').innerHTML = '<button class="btn secondary" data-action="back-feed">← Voltar ao feed</button><section class="profile-card">' + profileCover(p) + '<div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || p.username) + '</h2><p>@' + esc(p.username) + '</p><div class="profile-badges">' + renderBadges(publicBadges) + '</div><div class="profile-stats"><button data-action="open-follow-list" data-id="'+esc(p.id)+'" data-kind="followers"><strong>'+(followers.count||0)+'</strong><span>Seguidores</span></button><button data-action="open-follow-list" data-id="'+esc(p.id)+'" data-kind="following"><strong>'+(following.count||0)+'</strong><span>Seguindo</span></button><span><strong>'+state.posts.length+'</strong><span>Publicações</span></span><span><strong>'+state.posts.reduce((sum,post)=>sum+(post.likes?.length||0),0)+'</strong><span>Curtidas recebidas</span></span></div><p>' + esc(p.bio || '') + '</p>' + (own ? '<button class="btn secondary" data-action="edit-profile">Editar perfil</button>' : '<button class="btn '+(followingThis?'secondary':'primary')+'" data-action="follow" data-id="' + esc(p.id) + '" data-username="' + esc(p.username) + '">'+(followingThis?'Seguindo · Deixar de seguir':'Seguir')+'</button><button class="btn secondary" data-action="start-chat" data-id="'+esc(p.id)+'" data-username="'+esc(p.username)+'">Mensagem</button><button class="btn secondary" data-action="report-user" data-id="'+esc(p.id)+'" data-username="'+esc(p.username)+'">Denunciar perfil</button>') + '</div></section><section class="panel"><div class="section-heading"><h3>Publicações de @' + esc(p.username) + '</h3><span class="muted small">'+state.posts.length+' itens</span></div><div id="userPosts">' + (state.posts.length ? state.posts.map(renderPost).join('') : '<p class="muted">Este perfil ainda não publicou fotos ou vídeos.</p>') + '</div></section>';
-  }  async function fetchPosts() {
+  }  async function openSharedPost(postId) {
+    if (!/^[0-9a-f-]{36}$/i.test(postId)) return;
+    let card = $('#content [data-post="'+CSS.escape(postId)+'"]');
+    if (!card) {
+      const {data,error} = await state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url,profile_badges(badge_key)),likes(user_id),comments(id)').eq('id',postId).maybeSingle();
+      if (error) throw error;
+      if (!data) { notice('Esta publicação não está disponível.'); return; }
+      state.posts = [data, ...state.posts.filter(p => p.id !== data.id)];
+      const holder = document.createElement('div');
+      holder.innerHTML = renderPost(data);
+      card = holder.firstElementChild;
+      $('#content').prepend(card);
+      setupReelPlayback($('#content'));
+    }
+    card.scrollIntoView({behavior:'smooth',block:'center'});
+    card.classList.add('shared-post-highlight');
+    setTimeout(() => card.classList.remove('shared-post-highlight'), 2200);
+  }
+  async function fetchPosts() {
     let query = state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url,profile_badges(badge_key)),likes(user_id),comments(id)').order('created_at',{ascending:false}).limit(40);
     if (state.page === 'explore' && state.search) query = query.ilike('body','%' + state.search.replace(/[%_]/g,'') + '%');
     if (state.feed === 'following' && isSignedIn()) {
@@ -855,7 +878,13 @@
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
   async function init() {
     updateAccountUI();
-    try { await ensureClient(); if (state.page !== 'home') await go(state.page, false); else await renderPage(); }
+    const shared = /^#post-([0-9a-f-]{36})$/i.exec(location.hash || '');
+    try {
+      await ensureClient();
+      if (state.page !== 'home') await go(state.page, false);
+      else await renderPage();
+      if (shared) await openSharedPost(shared[1]);
+    }
     catch(e) {
       console.error('TeurChat initialization:',e);
       $('#content').innerHTML='<section class="empty-state"><div class="empty-mark">!</div><h2>O TeurChat não conseguiu conectar</h2><p>'+esc(e.message||'Verifique a conexão.')+'</p><button class="btn primary" data-action="refresh">Tentar novamente</button></section>';
