@@ -330,7 +330,7 @@
   async function startChat(userId,username) {
     if(!authRequired())return;
     const {data,error}=await state.client.rpc('start_direct_conversation',{target_user:userId});if(error)throw error;
-    state.activeConversationId=data;state.page='messages';await go('messages');await openConversation(data);notice('Conversa com @'+username+' aberta.','success');
+    state.activeConversationId=data;state.page='messages';await go('messages');notice('Conversa com @'+username+' aberta.','success');
   }
   async function openConversation(conversationId) {
     state.activeConversationId=conversationId;
