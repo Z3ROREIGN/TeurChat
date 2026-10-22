@@ -17,6 +17,7 @@
   function go(page) {
     const allowed = ['home','explore','saved','messages','profile','notifications','admin','support'];
     state.page = allowed.includes(page) ? page : 'home';
+    document.body.dataset.page = state.page;
     $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.go === state.page));
     $('#pageTitle').textContent = ({home:'Início',explore:'Explorar',saved:'Salvos',messages:'Mensagens',profile:'Meu perfil',notifications:'Notificações',admin:'Administração',support:'Central de ajuda'})[state.page];
     const adminNav = $('#adminNav'); if (adminNav) adminNav.hidden = !state.isAdmin;
