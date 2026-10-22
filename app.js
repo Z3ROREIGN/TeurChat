@@ -59,11 +59,11 @@
   function setupRealtime() {
     if (!state.client || state.realtimeChannel) return;
     const channel = state.client.channel('teurchat-live-updates');
-    ['posts','likes','comments','follows','profiles','notifications','messages','community_cases','reports','bookmarks'].forEach(table => {
+    ['posts','likes','comments','follows','profiles','notifications','messages','conversations','conversation_members','community_cases','reports','bookmarks'].forEach(table => {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, payload => {
         // Avoid replacing a form while someone is typing or closing an interaction.
-        if (state.page === 'messages' && table === 'messages') {
-          if (state.activeConversationId) loadChatMessages(state.activeConversationId).catch(console.error);
+        if (state.page === 'messages' && ['messages','conversations','conversation_members'].includes(table)) {
+          if (table === 'messages' && state.activeConversationId) loadChatMessages(state.activeConversationId).catch(console.error);
           loadChatList().catch(console.error);
           return;
         }
@@ -205,7 +205,7 @@
     const isReel = ['home','explore'].includes(state.page) && !!p.media_url;
     const author = '<button class="avatar-button" data-action="view-profile" data-id="' + esc(p.user_id) + '" aria-label="Ver perfil">' + avatar(profile) + '</button><button class="post-author profile-open" data-action="view-profile" data-id="' + esc(p.user_id) + '"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + '</span></button>';
     const media = p.media_url ? (type === 'video' ? '<video class="post-media' + (isReel?' reel-media':'') + '" src="' + esc(p.media_url) + '" ' + (isReel?'autoplay muted loop':'controls') + ' playsinline preload="metadata"></video>' : '<img class="post-media' + (isReel?' reel-image':'') + '" src="' + esc(p.media_url) + '" alt="' + esc(p.title || 'Foto da publicação') + '" loading="lazy">') : '';
-    const actions = '<button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '" aria-label="Curtir"><span>' + svgIcon('heart') + '</span><b>' + likes + '</b></button><button class="action" data-action="comment" data-id="' + esc(p.id) + '" aria-label="Comentários"><span>' + svgIcon('comment') + '</span><b>' + comments + '</b></button><button class="action" data-action="save" data-id="' + esc(p.id) + '" aria-label="Salvar"><span>' + svgIcon('bookmark') + '</span><b>Salvar</b></button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '" aria-label="Compartilhar"><span>' + svgIcon('share') + '</span><b>Enviar</b></button>';
+    const actions = '<button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '" aria-label="Curtir" aria-pressed="' + (liked?'true':'false') + '"><span>' + svgIcon('heart') + '</span><b>' + likes + '</b></button><button class="action" data-action="comment" data-id="' + esc(p.id) + '" aria-label="Comentários"><span>' + svgIcon('comment') + '</span><b>' + comments + '</b></button><button class="action" data-action="save" data-id="' + esc(p.id) + '" aria-label="Salvar"><span>' + svgIcon('bookmark') + '</span><b>Salvar</b></button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '" aria-label="Compartilhar"><span>' + svgIcon('share') + '</span><b>Enviar</b></button>';
     if (isReel) {
       return '<article class="post-card reel-card" data-post="' + esc(p.id) + '"><div class="reel-video-wrap">' + media + '<div class="reel-shade"></div></div><div class="reel-top">' + author + '<button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">' + svgIcon('more') + '</button></div><div class="reel-caption">' + (p.title?'<h3 class="post-title">' + esc(p.title) + '</h3>':'') + '<p>' + esc(p.body || '') + '</p><span class="reel-audio">♫  Áudio original · @' + esc(profile.username || 'usuario') + '</span></div><div class="reel-actions">' + actions + '</div></article>';
     }
@@ -581,7 +581,20 @@
       const {data:urlData} = state.client.storage.from('teur-media').getPublicUrl(uploaded.path);
       const {error} = await state.client.from('posts').insert({user_id:state.session.user.id,title,body,media_url:urlData.publicUrl,media_type:file.type.startsWith('video/')?'video':'image'});
       if (error) { await state.client.storage.from('teur-media').remove([uploaded.path]); throw error; }
-      closeModal(); state.page='home'; state.feed='all'; go('home'); notice('Foto/vídeo publicado com sucesso.','success');
+      closeModal();
+      state.feed='all';
+      if (state.page === 'home' || state.page === 'explore') {
+        state.page = 'home';
+        document.body.dataset.page = 'home';
+        if (location.hash !== '#home') history.replaceState({page:'home'}, '', '#home');
+        $('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.go === 'home'));
+        $('#pageTitle').textContent = 'Início';
+        $('#feedFilters').hidden = false; $('#searchBar').hidden = true;
+        await renderFeed();
+      } else if (state.page === 'profile' && !state.viewedProfileId) {
+        await renderPage();
+      }
+      notice('Foto/vídeo publicado com sucesso.','success');
     } catch(e) { console.error(e); notice('Não foi possível publicar: '+(e.message || 'verifique o armazenamento do Supabase.'),'error'); }
     finally { setBusy(false); }
   }
@@ -594,7 +607,14 @@
         ? await state.client.from('likes').delete().eq('user_id',state.session.user.id).eq('post_id',id)
         : await state.client.from('likes').insert({user_id:state.session.user.id,post_id:id});
       if (result.error) throw result.error;
-      await renderPage();
+      p.likes = Array.isArray(p.likes) ? p.likes.filter(x => x.user_id !== state.session.user.id) : [];
+      if (!liked) p.likes.push({user_id:state.session.user.id});
+      const button = $('#content [data-post="'+CSS.escape(id)+'"] [data-action="like"]');
+      if (button) {
+        button.classList.toggle('selected', !liked);
+        button.setAttribute('aria-pressed', String(!liked));
+        const count = button.querySelector('b'); if (count) count.textContent = String(p.likes.length);
+      }
     } catch(e) { notice('Não foi possível atualizar a curtida: '+e.message,'error'); }
   }
   async function savePost(id) {
@@ -604,7 +624,12 @@
       if(readError) throw readError;
       if(existing) { const {error}=await state.client.from('bookmarks').delete().eq('user_id',state.session.user.id).eq('post_id',id); if(error) throw error; notice('Publicação removida dos salvos.'); }
       else { const {error}=await state.client.from('bookmarks').insert({user_id:state.session.user.id,post_id:id}); if(error) throw error; notice('Publicação salva.','success'); }
-      if(state.page==='saved') await renderPage();
+      const button = $('#content [data-post="'+CSS.escape(id)+'"] [data-action="save"]');
+      if (button) {
+        button.classList.toggle('selected', !existing);
+        const label = button.querySelector('b'); if (label) label.textContent = existing ? 'Salvar' : 'Salvo';
+      }
+      if(state.page==='saved' && existing) $('#content [data-post="'+CSS.escape(id)+'"]')?.remove();
     } catch(e) { notice('Não foi possível salvar: '+e.message,'error'); }
   }
   async function submitComment(form) {
@@ -612,7 +637,15 @@
     const body=String(new FormData(form).get('body')||'').trim(), post_id=form.dataset.postId;
     if(!body) return;
     setBusy(true);
-    try { const {error}=await state.client.from('comments').insert({user_id:state.session.user.id,post_id,body}); if(error)throw error; closeModal(); await renderPage(); notice('Comentário enviado.','success'); }
+    try {
+      const {data,error}=await state.client.from('comments').insert({user_id:state.session.user.id,post_id,body}).select('id').single();
+      if(error)throw error;
+      const post = state.posts.find(x => x.id === post_id);
+      if (post) { post.comments = Array.isArray(post.comments) ? post.comments : []; post.comments.push({id:data.id}); }
+      const count = $('#content [data-post="'+CSS.escape(post_id)+'"] [data-action="comment"] b');
+      if (count && post) count.textContent = String(post.comments.length);
+      closeModal(); notice('Comentário enviado.','success');
+    }
     catch(e){notice('Não foi possível comentar: '+e.message,'error');}
     finally{setBusy(false);}
   }
