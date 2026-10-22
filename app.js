@@ -587,21 +587,11 @@
       state.viewedProfileId = null;
       document.body.dataset.page = 'home';
       if (location.hash !== '#home') history.replaceState({page:'home'}, '', '#home');
-      $('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.go === 'home'));
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.go === 'home'));
       $('#pageTitle').textContent = 'Início';
-      $('#feedFilters').hidden = false; $('#searchBar').hidden = true;
+      $('#feedFilters').hidden = false;
+      $('#searchBar').hidden = true;
       await renderFeed();
-      if (false) {
-        state.page = 'home';
-        document.body.dataset.page = 'home';
-        if (location.hash !== '#home') history.replaceState({page:'home'}, '', '#home');
-        $('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.go === 'home'));
-        $('#pageTitle').textContent = 'Início';
-        $('#feedFilters').hidden = false; $('#searchBar').hidden = true;
-        await renderFeed();
-      } else if (state.page === 'profile' && !state.viewedProfileId) {
-        await renderPage();
-      }
       notice('Foto/vídeo publicado com sucesso.','success');
     } catch(e) { console.error(e); notice('Não foi possível publicar: '+(e.message || 'verifique o armazenamento do Supabase.'),'error'); }
     finally { setBusy(false); }
