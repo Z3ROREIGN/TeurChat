@@ -477,6 +477,69 @@ body{background:#08090b;color:var(--tc-copy)}
 }
 @media(min-width:681px){.mobile-nav{display:none!important}}
 
+
+/* Full product-wide TikTok interaction model, preserving TeurChat monochrome identity */
+:root{--tc-black:#08090b;--tc-panel:#111216;--tc-line:#292b30;--tc-muted:#a6a8af}
+body{background:var(--tc-black)!important;color:#f7f7f8}
+.shell{align-items:stretch}
+.sidebar{position:sticky;top:0;height:100dvh;overflow-y:auto;justify-content:flex-start}
+.nav-item{position:relative;transition:background .16s ease,color .16s ease}
+.nav-item.active{color:#fff}
+.main{min-height:100dvh}
+.topbar{position:sticky;top:0;z-index:12;backdrop-filter:blur(18px);border-bottom:1px solid var(--tc-line)}
+#content{min-width:0}
+.post-card,.panel,.profile-card,.right-card,.chat-layout{background:var(--tc-panel)!important;border:1px solid var(--tc-line)!important;box-shadow:none!important}
+.post-card{border-radius:12px}
+.post-author{min-width:0}
+.post-author strong,.post-author span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.post-media{display:block;width:100%;object-fit:contain;background:#050506}
+.post-card:not(.reel-card) .post-media{max-height:78vh;object-fit:contain}
+.reel-card{padding:0!important}
+.reel-image{position:absolute;inset:0;width:100%;height:100%;max-height:none!important;object-fit:contain;background:#050506}
+.reel-video-wrap .post-media{width:100%;height:100%;max-height:none!important;object-fit:contain}
+.reel-shade{pointer-events:none}
+.reel-card .post-more{border-radius:50%}
+.reel-card .action{min-width:48px}
+.reel-card .action.selected{color:#fff}
+.profile-card{overflow:hidden!important}
+.profile-cover{height:150px}
+.profile-info{position:relative}
+.profile-info>.avatar{position:relative;z-index:2}
+.profile-stats button:hover,.notification-row:hover,.chat-person:hover{background:#1a1b20}
+.section-heading{align-items:center}
+.empty-state{background:#111216;border:1px solid var(--tc-line);border-radius:14px;padding:32px 20px}
+.search-form input,.support-form-panel input,.support-form-panel textarea,.case-controls input,.case-controls select{background:#0a0b0d;border-color:#303238}
+.chat-layout{overflow:hidden}
+.chat-sidebar{border-color:var(--tc-line)}
+.chat-window,.chat-header,.chat-compose{background:#111216}
+.chat-bubble{max-width:min(82%,520px)}
+.modal-card{background:#121316;border:1px solid #303238}
+.btn,.icon-btn,.action{transition:background .15s ease,border-color .15s ease,transform .15s ease}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #f5f5f5;outline-offset:3px}
+@media(min-width:681px){
+ .shell{grid-template-columns:225px minmax(0,1fr) 270px;max-width:1600px;gap:20px}
+ .main{max-width:100%;padding-bottom:28px}
+ #content:has(.reel-card){display:flex;flex-direction:column;align-items:center;gap:16px}
+ .reel-card{width:min(100%,560px);height:min(78dvh,820px);min-height:520px}
+ .feed-filters{position:sticky}
+}
+@media(max-width:680px){
+ .shell{display:block;width:100%;max-width:none}
+ .main{width:100%;padding:0 0 calc(78px + env(safe-area-inset-bottom))}
+ .topbar{height:55px;padding:0 12px}
+ #content{padding:10px 8px 20px}
+ #content:has(.reel-card){display:flex;flex-direction:column;gap:9px;padding:7px 7px 18px}
+ .reel-card{height:calc(100dvh - 137px - env(safe-area-inset-bottom));min-height:420px;max-height:820px;border-radius:10px}
+ .reel-image{object-fit:contain}
+ .reel-caption{left:12px;right:65px;bottom:13px}
+ .reel-actions{right:3px;bottom:12px;gap:7px}
+ .reel-actions .action{min-width:43px}
+ .profile-cover{height:90px}
+ .profile-info>.avatar{width:58px;height:58px;min-width:58px;min-height:58px;flex-basis:58px;margin-top:-25px}
+ .post-card:not(.reel-card) .post-media{max-height:65vh}
+ .empty-state{padding:24px 14px}
+}
+
 </style>
 </head>
 <body>
@@ -520,8 +583,8 @@ body{background:#08090b;color:var(--tc-copy)}
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=45"></script>
-<script src="/app.js?v=45"></script>
+<script src="/config.js?v=46"></script>
+<script src="/app.js?v=46"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
