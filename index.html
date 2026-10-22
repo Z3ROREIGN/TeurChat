@@ -116,6 +116,7 @@ body{background:#090a0b;letter-spacing:0}
 .chat-attach{display:flex;align-items:center;justify-content:center;flex:0 0 42px;width:42px;height:42px;border:1px solid #303135;border-radius:10px;color:#e9e9eb;background:#17181a;cursor:pointer;font-size:23px;line-height:1}
 .chat-attach:hover{background:#242529;border-color:#55565d}
 .chat-typing{color:#b4b5bb;font-size:11px;font-style:italic}
+.chat-presence{font-size:10px;color:#85868d;white-space:nowrap}.chat-presence.is-online{color:#bfc0c5}
 .chat-secure-label{font-size:10px;color:#b7b8be;border:1px solid #303135;border-radius:999px;padding:5px 8px;white-space:nowrap}
 .chat-bubble{animation:chat-bubble-in .16s ease-out}
 .chat-bubble.mine{color:#111}
@@ -780,8 +781,8 @@ input::placeholder,textarea::placeholder{color:#777b84}
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=56"></script>
-<script src="/app.js?v=56"></script>
+<script src="/config.js?v=57"></script>
+<script src="/app.js?v=57"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
