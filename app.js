@@ -258,10 +258,21 @@
     box.innerHTML = data?.length ? data.map(x => '<article class="comment-row">' + avatar(x.profiles || {}) + '<div><strong>' + esc(x.profiles?.display_name || x.profiles?.username || 'Usuário') + ' <span>@' + esc(x.profiles?.username || 'usuario') + '</span></strong><p>' + esc(x.body) + '</p><small>' + esc(new Date(x.created_at).toLocaleString('pt-BR')) + '</small>' + (state.isAdmin ? '<button class="action" data-action="admin-delete-comment" data-id="' + esc(x.id) + '">' + svgIcon('close') + ' Remover</button>' : '') + '</div></article>').join('') : '<p class="muted">Ainda não há comentários. Seja a primeira pessoa a comentar.</p>';
   }
   async function openUserProfile(userId) {
+    if (!userId || !state.client) throw new Error('Não foi possível identificar o dono desta publicação.');
     const viewToken = ++state.profileViewToken;
     state.viewedProfileId = userId;
-    const {data:p,error} = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url,banner_url,signup_number').eq('id',userId).single();
-    if (error) throw error;
+    const target = $('#content');
+    if (target) target.innerHTML = '<div class="loading"><span class="spinner"></span><span>Carregando perfil…</span></div>';
+    const cachedPost = state.posts.find(post => String(post.user_id) === String(userId));
+    const cachedProfile = cachedPost?.profiles || {};
+    const {data:profileRow,error:profileError} = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url,banner_url,signup_number').eq('id',userId).maybeSingle();
+    if (viewToken !== state.profileViewToken) return;
+    if (profileError) console.warn('Consulta do perfil público:', profileError.message);
+    const p = profileRow || (cachedProfile.username ? {
+      id:userId, username:cachedProfile.username, display_name:cachedProfile.display_name || cachedProfile.username,
+      bio:'', avatar_url:cachedProfile.avatar_url || null, banner_url:null, signup_number:cachedProfile.signup_number || null
+    } : null);
+    if (!p) throw new Error('O perfil não está disponível. Atualize a página e tente novamente.');
     const {data:userBadgeRows} = await state.client.from('profile_badges').select('badge_key').eq('user_id',userId);
     const publicBadges=(userBadgeRows||[]).map(row=>row.badge_key);
     const {data:posts,error:postError} = await state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url,signup_number,profile_badges(badge_key)),likes(user_id),comments(id)').eq('user_id',userId).order('created_at',{ascending:false}).limit(40);
@@ -331,13 +342,18 @@
   }
   let reelObserver = null;
   let feedLoadObserver = null;
+  let feedLastLoadScrollY = null;
   function setupFeedInfiniteScroll(root) {
     if (feedLoadObserver) feedLoadObserver.disconnect();
     const sentinel = root.querySelector('.feed-sentinel');
     if (!sentinel || !('IntersectionObserver' in window) || !state.feedHasMore) return;
     feedLoadObserver = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting) && !state.feedLoading) loadNextFeedPost(null);
-    }, {root:null, rootMargin:'150px 0px 150px 0px', threshold:0});
+      // Only fetch another post after the person actually scrolls down.
+      // This prevents a short first video / small viewport from auto-loading the whole feed.
+      const scrolledSinceLastPost = feedLastLoadScrollY !== null && window.scrollY > feedLastLoadScrollY + 80;
+      if (entries.some(entry => entry.isIntersecting) && !state.feedLoading &&
+          (feedLastLoadScrollY === null || scrolledSinceLastPost)) loadNextFeedPost(null);
+    }, {root:null, rootMargin:'0px', threshold:0.01});
     feedLoadObserver.observe(sentinel);
   }
   function setupReelPlayback(root) {
@@ -388,6 +404,7 @@
       }
       state.posts.push(next[0]);
       state.feedOffset += 1;
+      feedLastLoadScrollY = window.scrollY;
       const holder = document.createElement('div');
       holder.innerHTML = renderPost(next[0]);
       const sentinel = target.querySelector('.feed-sentinel');
@@ -427,6 +444,7 @@
     state.feedOffset = 0;
     state.feedLoading = false;
     state.feedHasMore = true;
+    feedLastLoadScrollY = null;
     state.posts = [];
     target.innerHTML = '<div class="loading"><span class="spinner"></span><span>Carregando uma publicação…</span></div>';
     try {
@@ -438,6 +456,7 @@
         return;
       }
       state.feedOffset = loadedPosts.length;
+      feedLastLoadScrollY = window.scrollY;
       target.innerHTML = state.posts.map(renderPost).join('') + '<div class="feed-sentinel" aria-hidden="true"></div><p class="feed-loading muted small" hidden>Carregando próxima publicação…</p>';
       setupReelPlayback(target);
       setupFeedInfiniteScroll(target);
