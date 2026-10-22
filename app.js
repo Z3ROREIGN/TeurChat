@@ -2,7 +2,7 @@
   'use strict';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null, isAdmin: false, adminUsers: [], activeConversationId: null, chatChannel: null, chatChannelReady: false, chatTypingTimer: null, chatTypingHideTimer: null, chatMessageRefreshTimer: null, chatMessageLoadToken: 0, followListMode: null, adminStats: {}, adminReports: [], realtimeChannel: null, realtimeTimer: null, rendering: false, pendingRealtimeRefresh: false, feedOffset: 0, feedLoading: false, feedHasMore: true };
+  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null, isAdmin: false, adminUsers: [], activeConversationId: null, chatChannel: null, chatChannelReady: false, chatTypingTimer: null, chatTypingHideTimer: null, chatMessageRefreshTimer: null, chatMessageLoadToken: 0, followListMode: null, adminStats: {}, adminReports: [], realtimeChannel: null, realtimeTimer: null, rendering: false, pendingRealtimeRefresh: false, feedOffset: 0, feedLoading: false, feedHasMore: true, profileViewToken: 0 };
   let deferredInstallPrompt = null;
   window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault();
@@ -26,6 +26,8 @@
   const authRequired = () => { if (!isSignedIn()) { openModal('auth'); notice('Entre na sua conta para continuar.'); return false; } return true; };
   const setBusy = (yes) => { state.busy = yes; $$('[data-busy]').forEach(b => { b.disabled = yes; }); };
   function go(page, writeHistory = true) {
+    state.viewedProfileId = null;
+    state.profileViewToken += 1;
     const allowed = ['home','explore','saved','messages','profile','notifications','admin','support'];
     state.page = allowed.includes(page) ? page : 'home';
     if (writeHistory) {
@@ -105,6 +107,7 @@
           (state.page === 'support' && table === 'community_cases') ||
           (state.page === 'admin' && ['community_cases','reports','profiles'].includes(table));
         if (!relevant) return;
+        if (state.viewedProfileId) return;
         clearTimeout(state.realtimeTimer);
         state.realtimeTimer = setTimeout(async () => {
           if (document.visibilityState !== 'visible') { state.pendingRealtimeRefresh = true; return; }
@@ -128,7 +131,7 @@
     });
   }
   document.addEventListener('focusout', () => {
-    if (!state.pendingRealtimeRefresh || $('#modal')?.classList.contains('open')) return;
+    if (!state.pendingRealtimeRefresh || state.viewedProfileId || $('#modal')?.classList.contains('open')) return;
     setTimeout(() => {
       if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
       state.pendingRealtimeRefresh = false;
@@ -136,7 +139,7 @@
     }, 150);
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && state.pendingRealtimeRefresh && !$('#modal')?.classList.contains('open')) {
+    if (document.visibilityState === 'visible' && state.pendingRealtimeRefresh && !state.viewedProfileId && !$('#modal')?.classList.contains('open')) {
       state.pendingRealtimeRefresh = false;
       renderPage().catch(console.error);
     }
@@ -202,10 +205,10 @@
     verified: { label: 'Verificado', icon: 'badge-check', description: 'Indica uma conta verificada pela equipe do TeurChat.' },
     partner: { label: 'Parceiro', icon: 'handshake', description: 'Reconhece parceiros oficiais da comunidade TeurChat.' },
     early_user_number: { label: 'Usuário', icon: 'badge-check', description: 'Insígnia dourada numerada, reservada aos primeiros 100 usuários registrados no TeurChat.' },
-    first_100_founder: { label: 'Fundador de Elite', icon: 'shield-check', description: 'Emblema de raridade extrema, exclusivo dos 100 primeiros usuários registrados no TeurChat. Não será concedido novamente após o limite.' }
-  };
+      };
   function renderBadges(keys, signupNumber) {
     return (keys || []).map(k => {
+      if (k === 'first_100_founder') return '';
       const base = badgeMeta[k] || {label:String(k).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),icon:'badge-check',description:'Insígnia especial da comunidade TeurChat.'};
       const meta = k === 'early_user_number' && signupNumber ? {...base,label:'Usuário #' + signupNumber} : base;
       return '<button type="button" class="profile-badge badge-' + esc(k) + '" data-action="badge-info" data-badge-key="' + esc(k) + '" data-badge-number="' + esc(signupNumber || '') + '" title="' + esc(meta.description) + '" aria-label="Ver descrição da insígnia ' + esc(meta.label) + '">' + svgIcon(meta.icon) + '<span>' + esc(meta.label) + '</span></button>';
@@ -241,7 +244,7 @@
     const type = p.media_type || (/\.(mp4|webm|mov)(\?|$)/i.test(p.media_url || '') ? 'video' : 'image');
     const isReel = ['home','explore'].includes(state.page) && !!p.media_url;
     const author = '<button class="avatar-button" data-action="view-profile" data-id="' + esc(p.user_id) + '" aria-label="Ver perfil">' + avatar(profile) + '</button><button class="post-author profile-open" data-action="view-profile" data-id="' + esc(p.user_id) + '"><strong>' + esc(profile.display_name || profile.username || 'Usuário TeurChat') + '</strong><span>@' + esc(profile.username || 'usuario') + '</span></button>';
-    const media = p.media_url ? (type === 'video' ? '<video class="post-media' + (isReel?' reel-media':'') + '" src="' + esc(p.media_url) + '" ' + (isReel?'autoplay muted loop':'controls') + ' playsinline preload="none"></video>' : '<img class="post-media' + (isReel?' reel-image':'') + '" src="' + esc(p.media_url) + '" alt="' + esc(p.title || 'Foto da publicação') + '" loading="lazy">') : '';
+    const media = p.media_url ? (type === 'video' ? '<video class="post-media' + (isReel?' reel-media':'') + '" src="' + esc(p.media_url) + '" ' + (isReel?'autoplay muted loop':'controls') + ' playsinline preload="metadata"></video>' : '<img class="post-media' + (isReel?' reel-image':'') + '" src="' + esc(p.media_url) + '" alt="' + esc(p.title || 'Foto da publicação') + '" loading="lazy">') : '';
     const actions = '<button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '" aria-label="Curtir" aria-pressed="' + (liked?'true':'false') + '"><span>' + svgIcon('heart') + '</span><b>' + likes + '</b></button><button class="action" data-action="comment" data-id="' + esc(p.id) + '" aria-label="Comentários"><span>' + svgIcon('comment') + '</span><b>' + comments + '</b></button><button class="action" data-action="save" data-id="' + esc(p.id) + '" aria-label="Salvar"><span>' + svgIcon('bookmark') + '</span><b>Salvar</b></button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '" aria-label="Compartilhar"><span>' + svgIcon('share') + '</span><b>Enviar</b></button>';
     if (isReel) {
       return '<article class="post-card reel-card" data-post="' + esc(p.id) + '"><div class="reel-video-wrap">' + media + '<div class="reel-shade"></div></div><div class="reel-top">' + author + '<button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">' + svgIcon('more') + '</button></div><div class="reel-caption">' + (p.title?'<h3 class="post-title">' + esc(p.title) + '</h3>':'') + '<p>' + esc(p.body || '') + '</p><span class="reel-audio">♫  Áudio original · @' + esc(profile.username || 'usuario') + '</span></div><div class="reel-actions">' + actions + '</div></article>';
@@ -255,16 +258,19 @@
     box.innerHTML = data?.length ? data.map(x => '<article class="comment-row">' + avatar(x.profiles || {}) + '<div><strong>' + esc(x.profiles?.display_name || x.profiles?.username || 'Usuário') + ' <span>@' + esc(x.profiles?.username || 'usuario') + '</span></strong><p>' + esc(x.body) + '</p><small>' + esc(new Date(x.created_at).toLocaleString('pt-BR')) + '</small>' + (state.isAdmin ? '<button class="action" data-action="admin-delete-comment" data-id="' + esc(x.id) + '">' + svgIcon('close') + ' Remover</button>' : '') + '</div></article>').join('') : '<p class="muted">Ainda não há comentários. Seja a primeira pessoa a comentar.</p>';
   }
   async function openUserProfile(userId) {
+    const viewToken = ++state.profileViewToken;
     const {data:p,error} = await state.client.from('profiles').select('id,username,display_name,bio,avatar_url,banner_url,signup_number').eq('id',userId).single();
     if (error) throw error;
     const {data:userBadgeRows} = await state.client.from('profile_badges').select('badge_key').eq('user_id',userId);
     const publicBadges=(userBadgeRows||[]).map(row=>row.badge_key);
     const {data:posts,error:postError} = await state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url,signup_number,profile_badges(badge_key)),likes(user_id),comments(id)').eq('user_id',userId).order('created_at',{ascending:false}).limit(40);
     if (postError) throw postError;
+    if (viewToken !== state.profileViewToken) return;
     state.posts = posts || []; state.viewedProfileId = userId;
     $('#feedFilters').hidden = true; $('#searchBar').hidden = true; $('#pageTitle').textContent = '@' + (p.username || 'perfil');
     const own = userId === state.session?.user?.id;
     const [followers,following,followState]=await Promise.all([state.client.from('follows').select('follower_id',{count:'exact',head:true}).eq('followed_id',userId),state.client.from('follows').select('followed_id',{count:'exact',head:true}).eq('follower_id',userId),own?Promise.resolve({data:null}):state.client.from('follows').select('follower_id').eq('follower_id',state.session?.user?.id||'00000000-0000-0000-0000-000000000000').eq('followed_id',userId).maybeSingle()]);
+    if (viewToken !== state.profileViewToken) return;
     const followingThis=!!followState.data;
     $('#content').innerHTML = '<button class="btn secondary" data-action="back-feed">← Voltar ao feed</button><section class="profile-card">' + profileCover(p) + '<div class="profile-info">' + avatar(p) + '<h2>' + esc(p.display_name || p.username) + '</h2><p>@' + esc(p.username) + '</p><div class="profile-badges">' + renderBadges(publicBadges,p.signup_number) + '</div><div class="profile-stats"><button data-action="open-follow-list" data-id="'+esc(p.id)+'" data-kind="followers"><strong>'+(followers.count||0)+'</strong><span>Seguidores</span></button><button data-action="open-follow-list" data-id="'+esc(p.id)+'" data-kind="following"><strong>'+(following.count||0)+'</strong><span>Seguindo</span></button><span><strong>'+state.posts.length+'</strong><span>Publicações</span></span><span><strong>'+state.posts.reduce((sum,post)=>sum+(post.likes?.length||0),0)+'</strong><span>Curtidas recebidas</span></span></div><p>' + esc(p.bio || '') + '</p>' + (own ? '<button class="btn secondary" data-action="edit-profile">Editar perfil</button>' : '<button class="btn '+(followingThis?'secondary':'primary')+'" data-action="follow" data-id="' + esc(p.id) + '" data-username="' + esc(p.username) + '">'+(followingThis?'Seguindo · Deixar de seguir':'Seguir')+'</button><button class="btn secondary" data-action="start-chat" data-id="'+esc(p.id)+'" data-username="'+esc(p.username)+'">Mensagem</button><button class="btn secondary" data-action="report-user" data-id="'+esc(p.id)+'" data-username="'+esc(p.username)+'">Denunciar perfil</button>') + '</div></section><section class="panel"><div class="section-heading"><h3>Publicações de @' + esc(p.username) + '</h3><span class="muted small">'+state.posts.length+' itens</span></div><div id="userPosts">' + (state.posts.length ? state.posts.map(renderPost).join('') : '<p class="muted">Este perfil ainda não publicou fotos ou vídeos.</p>') + '</div></section>';
   }  async function openSharedPost(postId) {
@@ -323,6 +329,16 @@
     if (commentButton) commentButton.textContent = String((commentsResult.data || []).length);
   }
   let reelObserver = null;
+  let feedLoadObserver = null;
+  function setupFeedInfiniteScroll(root) {
+    if (feedLoadObserver) feedLoadObserver.disconnect();
+    const sentinel = root.querySelector('.feed-sentinel');
+    if (!sentinel || !('IntersectionObserver' in window) || !state.feedHasMore) return;
+    feedLoadObserver = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting) && !state.feedLoading) loadNextFeedPost(null);
+    }, {root:null, rootMargin:'150px 0px 150px 0px', threshold:0});
+    feedLoadObserver.observe(sentinel);
+  }
   function setupReelPlayback(root) {
     if (reelObserver) reelObserver.disconnect();
     const videos = $$('video.reel-media', root);
@@ -356,11 +372,13 @@
     if (!target || state.feedLoading || !state.feedHasMore) return;
     state.feedLoading = true;
     if (button) { button.disabled = true; button.textContent = 'Carregando uma publicação…'; }
+    if (feedLoadObserver) feedLoadObserver.disconnect();
     try {
       const next = await fetchPosts(state.feedOffset);
       if (!next.length) {
         state.feedHasMore = false;
         button?.remove();
+        target.querySelector('.feed-sentinel')?.remove();
         const end = document.createElement('p');
         end.className = 'feed-end muted small';
         end.textContent = 'Você chegou ao fim das publicações.';
@@ -371,14 +389,20 @@
       state.feedOffset += 1;
       const holder = document.createElement('div');
       holder.innerHTML = renderPost(next[0]);
-      if (button) target.insertBefore(holder.firstElementChild, button);
+      const sentinel = target.querySelector('.feed-sentinel');
+      if (sentinel) target.insertBefore(holder.firstElementChild, sentinel);
+      else if (button) target.insertBefore(holder.firstElementChild, button);
       else target.appendChild(holder.firstElementChild);
       if (button) { button.disabled = false; button.textContent = 'Carregar próxima publicação'; }
       setupReelPlayback(target);
+      setupFeedInfiniteScroll(target);
     } catch (e) {
       console.error(e);
       if (button) { button.disabled = false; button.textContent = 'Tentar carregar a próxima'; }
-      else target.insertAdjacentHTML('beforeend','<button class="btn secondary feed-next" data-action="load-next-post">Tentar carregar a próxima</button>');
+      else {
+        target.querySelector('.feed-sentinel')?.remove();
+        target.insertAdjacentHTML('beforeend','<button class="btn secondary feed-next" data-action="load-next-post">Tentar carregar a próxima</button>');
+      }
       notice('Não foi possível carregar a próxima publicação.','error');
     } finally { state.feedLoading = false; }
   }
@@ -413,8 +437,9 @@
         return;
       }
       state.feedOffset = loadedPosts.length;
-      target.innerHTML = state.posts.map(renderPost).join('') + '<button class="btn secondary feed-next" data-action="load-next-post">Carregar próxima publicação</button>';
+      target.innerHTML = state.posts.map(renderPost).join('') + '<div class="feed-sentinel" aria-hidden="true"></div><p class="feed-loading muted small" hidden>Carregando próxima publicação…</p>';
       setupReelPlayback(target);
+      setupFeedInfiniteScroll(target);
     } catch (e) {
       console.error(e);
       if (silent) return;
