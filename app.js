@@ -3,6 +3,17 @@
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null, isAdmin: false, adminUsers: [], activeConversationId: null, chatChannel: null, followListMode: null, adminStats: {}, adminReports: [], realtimeChannel: null, realtimeTimer: null, rendering: false, pendingRealtimeRefresh: false };
+  let deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    const button = $('[data-action="install-app"]');
+    if (button) button.title = 'Instalar TeurChat';
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    notice('TeurChat foi instalado neste dispositivo.','success');
+  });
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const initials = v => (String(v || 'U').trim()[0] || 'U').toUpperCase();
   const notice = (msg, type = '') => {
@@ -824,6 +835,22 @@
     if(action==='admin-delete-comment') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); if(!confirm('Excluir este comentário?'))return; const {error}=await state.client.rpc('admin_delete_comment',{target_comment:id}); if(error)throw error; notice('Comentário removido.','success'); const postId=$('#commentForm')?.dataset.postId; if(postId) await loadComments(postId); await renderPage(); return; }
     if(action==='admin-ban') return adminBan(id,el.dataset.username,true);
     if(action==='admin-unban') return adminBan(id,el.dataset.username,false);
+    if(action==='install-app') {
+      if (window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true) {
+        notice('O TeurChat já está instalado neste dispositivo.');
+        return;
+      }
+      if (deferredInstallPrompt) {
+        const promptEvent = deferredInstallPrompt;
+        deferredInstallPrompt = null;
+        await promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
+        notice(choice?.outcome === 'accepted' ? 'Pedido de instalação confirmado.' : 'Instalação não concluída. Você pode tentar novamente pelo menu do navegador.', choice?.outcome === 'accepted' ? 'success' : '');
+      } else {
+        notice('No Chrome, abra o menu ⋮ e escolha “Instalar app” ou “Adicionar à tela inicial”.');
+      }
+      return;
+    }
     if(action==='compose') return openModal('compose');
     if(action==='close-modal') return closeModal();
     if(action==='auth') return openModal('auth');
