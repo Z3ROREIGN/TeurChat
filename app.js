@@ -2,7 +2,7 @@
   'use strict';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null, isAdmin: false, adminUsers: [], activeConversationId: null, chatChannel: null, followListMode: null, adminStats: {}, adminReports: [], realtimeChannel: null, realtimeTimer: null, rendering: false, pendingRealtimeRefresh: false };
+  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null, isAdmin: false, adminUsers: [], activeConversationId: null, chatChannel: null, chatChannelReady: false, chatTypingTimer: null, chatTypingHideTimer: null, chatMessageRefreshTimer: null, chatMessageLoadToken: 0, followListMode: null, adminStats: {}, adminReports: [], realtimeChannel: null, realtimeTimer: null, rendering: false, pendingRealtimeRefresh: false };
   let deferredInstallPrompt = null;
   window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault();
@@ -74,10 +74,9 @@
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, payload => {
         // Avoid replacing a form while someone is typing or closing an interaction.
         if (state.page === 'messages' && ['messages','conversations','conversation_members'].includes(table)) {
-          if (table === 'messages' && state.activeConversationId && payload.new?.conversation_id === state.activeConversationId) {
-            loadChatMessages(state.activeConversationId).catch(console.error);
-          }
-          loadChatList({reopenActive:false}).catch(console.error);
+          // The active conversation has its own filtered message subscription.
+          // This global channel only refreshes the inbox when membership changes.
+          if (table !== 'messages') loadChatList({reopenActive:false}).catch(console.error);
           return;
         }
         if ($('#modal')?.classList.contains('open') || ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
@@ -424,17 +423,58 @@
     const box=$('#chatWindow');if(!box)return;
     const {data:members,error:memberError}=await state.client.from('conversation_members').select('user_id,profiles!conversation_members_user_id_fkey(id,username,display_name,avatar_url)').eq('conversation_id',conversationId);
     if(memberError)throw memberError;
+    if(state.activeConversationId!==conversationId)return;
     const other=(members||[]).find(m=>m.user_id!==state.session.user.id)?.profiles||{};
-    box.innerHTML='<header class="chat-header">'+avatar(other)+'<div><strong>'+esc(other.display_name||other.username||'Conversa')+'</strong><small>@'+esc(other.username||'usuario')+'</small></div><button class="btn secondary" data-action="chat-refresh">Atualizar</button></header><div id="chatMessages" class="chat-messages"><div class="loading">Carregando mensagens…</div></div><form id="messageForm" data-conversation-id="'+esc(conversationId)+'" class="chat-compose"><label class="chat-attach" title="Enviar foto ou vídeo">＋<input name="attachment" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label><textarea name="body" maxlength="2000" rows="1" placeholder="Escreva uma mensagem…"></textarea><button class="btn primary" type="submit">Enviar</button></form><p class="chat-media-hint">Fotos ou vídeos de até 200 MB; vídeos de até 10 minutos.</p>';
+    box.innerHTML='<header class="chat-header">'+avatar(other)+'<div><strong>'+esc(other.display_name||other.username||'Conversa')+'</strong><small>@'+esc(other.username||'usuario')+' · <span id="chatTyping" class="chat-typing" aria-live="polite"></span></small></div><span class="chat-secure-label">Conversa privada</span></header><div id="chatMessages" class="chat-messages" aria-live="polite"><div class="loading">Carregando mensagens…</div></div><form id="messageForm" data-conversation-id="'+esc(conversationId)+'" class="chat-compose"><label class="chat-attach" title="Enviar foto ou vídeo" aria-label="Anexar foto ou vídeo">＋<input name="attachment" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label><textarea name="body" maxlength="2000" rows="1" placeholder="Escreva uma mensagem…" aria-label="Escreva uma mensagem"></textarea><button class="btn primary" type="submit">'+svgIcon('message')+'<span>Enviar</span></button></form><p class="chat-media-hint">Fotos ou vídeos de até 200 MB; vídeos de até 10 minutos.</p>';
+    await setupConversationRealtime(conversationId);
     await loadChatMessages(conversationId);
   }
+  async function setupConversationRealtime(conversationId) {
+    if(state.chatChannel){const previous=state.chatChannel;state.chatChannel=null;state.chatChannelReady=false;await state.client.removeChannel(previous).catch(()=>{});}
+    if(state.activeConversationId!==conversationId||!state.client)return;
+    const channel=state.client.channel('chat:'+conversationId,{config:{private:true,broadcast:{ack:true,self:false}}});
+    channel
+      .on('broadcast',{event:'typing'},({payload})=>{
+        if(state.activeConversationId!==conversationId||payload?.user_id===state.session?.user?.id)return;
+        const label=$('#chatTyping');
+        if(label)label.textContent=payload?.is_typing?(String(payload.display_name||'A pessoa')+' está digitando…'):'';
+        clearTimeout(state.chatTypingHideTimer);
+        if(payload?.is_typing)state.chatTypingHideTimer=setTimeout(()=>{const current=$('#chatTyping');if(current)current.textContent='';},2200);
+      })
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'conversation_id=eq.'+conversationId},payload=>{
+        if(state.activeConversationId!==conversationId)return;
+        clearTimeout(state.chatMessageRefreshTimer);
+        state.chatMessageRefreshTimer=setTimeout(()=>loadChatMessages(conversationId).catch(err=>console.error('Atualização da conversa:',err)),120);
+      })
+      .subscribe(status=>{
+        state.chatChannelReady=status==='SUBSCRIBED';
+        if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Canal da conversa indisponível:',status);
+      });
+    state.chatChannel=channel;
+  }
+  async function broadcastTyping(isTyping) {
+    const channel=state.chatChannel;
+    if(!channel||!state.chatChannelReady||!state.activeConversationId)return;
+    try{await channel.send({type:'broadcast',event:'typing',payload:{user_id:state.session.user.id,display_name:state.profile?.display_name||state.profile?.username||'A pessoa',is_typing:!!isTyping}});}catch(error){console.debug('Indicador de digitação indisponível:',error);}
+  }
+  function handleChatTyping() {
+    if(!state.activeConversationId)return;
+    broadcastTyping(true);
+    clearTimeout(state.chatTypingTimer);
+    state.chatTypingTimer=setTimeout(()=>broadcastTyping(false),1000);
+  }
   async function loadChatMessages(conversationId) {
-    const box=$('#chatMessages');if(!box)return;
+    const box=$('#chatMessages');if(!box||state.activeConversationId!==conversationId)return;
+    const token=++state.chatMessageLoadToken;
+    const wasNearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<90;
     const {data,error}=await state.client.from('messages').select('id,body,sender_id,created_at,attachment_url,attachment_type,attachment_name,profiles!messages_sender_id_fkey(username,display_name)').eq('conversation_id',conversationId).order('created_at',{ascending:true}).limit(200);
     if(error)throw error;
     for(const m of (data||[])){if(m.attachment_url){const signed=await state.client.storage.from('chat-media').createSignedUrl(m.attachment_url,3600);if(signed.error){console.warn('Anexo indisponível:',signed.error.message);m.attachment_url=null;}else m.attachment_url=signed.data.signedUrl;}}
-    box.innerHTML=(data||[]).map(m=>'<article class="chat-bubble '+(m.sender_id===state.session.user.id?'mine':'')+'">'+(m.attachment_url?(m.attachment_type==='video'?'<video class="chat-attachment" src="'+esc(m.attachment_url)+'" controls playsinline preload="metadata"></video>':'<a href="'+esc(m.attachment_url)+'" target="_blank" rel="noopener"><img class="chat-attachment" src="'+esc(m.attachment_url)+'" alt="'+esc(m.attachment_name||'Foto recebida')+'" loading="lazy"></a>'):'')+(m.body?'<p>'+esc(m.body)+'</p>':'')+'<time>'+esc(new Date(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))+'</time></article>').join('')||'<p class="muted small">Comece a conversa com uma mensagem.</p>';
-    box.scrollTop=box.scrollHeight;
+    if(token!==state.chatMessageLoadToken||state.activeConversationId!==conversationId||$('#chatMessages')!==box)return;
+    const html=(data||[]).map(m=>'<article class="chat-bubble '+(m.sender_id===state.session.user.id?'mine':'')+'" data-message-id="'+esc(m.id)+'">'+(m.attachment_url?(m.attachment_type==='video'?'<video class="chat-attachment" src="'+esc(m.attachment_url)+'" controls playsinline preload="metadata"></video>':'<a href="'+esc(m.attachment_url)+'" target="_blank" rel="noopener"><img class="chat-attachment" src="'+esc(m.attachment_url)+'" alt="'+esc(m.attachment_name||'Foto recebida')+'" loading="lazy"></a>'):'')+(m.body?'<p>'+esc(m.body)+'</p>':'')+'<time datetime="'+esc(m.created_at)+'">'+esc(new Date(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))+'</time></article>').join('');
+    const nextHtml=html||'<p class="muted small">Comece a conversa com uma mensagem.</p>';
+    if(box.dataset.renderedHtml!==nextHtml){box.dataset.renderedHtml=nextHtml;box.innerHTML=nextHtml;}
+    if(wasNearBottom)box.scrollTop=box.scrollHeight;
   }
   async function sendMessage(form) {
     if(!authRequired())return;
@@ -451,7 +491,7 @@
         const {data:uploaded,error:uploadError}=await state.client.storage.from('chat-media').upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});if(uploadError)throw uploadError;
         attachment_url=uploaded.path;attachment_type=file.type.startsWith('video/')?'video':'image';attachment_name=file.name.slice(0,180);
       }
-      const {error}=await state.client.from('messages').insert({conversation_id,sender_id:state.session.user.id,body,attachment_url,attachment_type,attachment_name});if(error)throw error;form.reset();await loadChatMessages(conversation_id);
+      const {error}=await state.client.from('messages').insert({conversation_id,sender_id:state.session.user.id,body,attachment_url,attachment_type,attachment_name});if(error)throw error;clearTimeout(state.chatTypingTimer);await broadcastTyping(false);form.reset();await loadChatMessages(conversation_id);
     }
     catch(e){notice('Mensagem não enviada: '+e.message,'error');}
     finally{if(submit)submit.disabled=false;}
@@ -902,7 +942,9 @@
     if(form.id==='searchForm'){e.preventDefault();state.search=$('#searchInput').value.trim();state.page='explore';go('explore');}
     if(form.id==='peopleSearchForm'){e.preventDefault();await searchProfiles($('#peopleSearch').value);}
   });
+  document.addEventListener('input',e=>{if(e.target?.closest('#messageForm textarea[name="body"]'))handleChatTyping();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+  document.addEventListener('change',e=>{if(e.target?.matches('#messageForm input[name="attachment"]')&&e.target.files?.[0]){const file=e.target.files[0];if(file.size>200*1024*1024){notice('O arquivo ultrapassa 200 MB.','error');e.target.value='';return;}const hint=$('.chat-media-hint');if(hint)hint.textContent='Anexo selecionado: '+file.name;}});
   async function init() {
     updateAccountUI();
     const shared = /^#post-([0-9a-f-]{36})$/i.exec(location.hash || '');
