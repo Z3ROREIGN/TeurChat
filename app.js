@@ -73,6 +73,15 @@
           state.pendingRealtimeRefresh = true;
           return;
         }
+        // Likes and comments update counters in place; don't rebuild the feed or interrupt video playback.
+        if (['home','explore','profile','saved'].includes(state.page) && ['likes','comments'].includes(table)) {
+          const postId = payload.new?.post_id || payload.old?.post_id;
+          if (postId) {
+            clearTimeout(state.realtimeTimer);
+            state.realtimeTimer = setTimeout(() => refreshPostMetrics(postId).catch(err => console.error('Atualização de contadores:', err)), 180);
+          }
+          return;
+        }
         // Update only the visible area affected by this event; never reload the document.
         const relevant =
           (['home','explore'].includes(state.page) && ['posts','likes','comments','follows','profiles'].includes(table)) ||
@@ -86,7 +95,7 @@
         state.realtimeTimer = setTimeout(async () => {
           if (document.visibilityState !== 'visible') { state.pendingRealtimeRefresh = true; return; }
           try {
-            if (state.page === 'home' || state.page === 'explore') await renderFeed();
+            if (state.page === 'home' || state.page === 'explore') await renderFeed({silent:true});
             else if (state.page === 'notifications') await renderNotificationsPage();
             else if (state.page === 'support') await loadMyCases();
             else if (state.page === 'admin') {
@@ -247,6 +256,27 @@
     return data || [];
   }
 
+  async function refreshPostMetrics(postId) {
+    const card = $('#content [data-post="'+CSS.escape(postId)+'"]');
+    if (!card || !state.client) return;
+    const [likesResult, commentsResult] = await Promise.all([
+      state.client.from('likes').select('user_id').eq('post_id',postId),
+      state.client.from('comments').select('id').eq('post_id',postId)
+    ]);
+    if (likesResult.error) throw likesResult.error;
+    if (commentsResult.error) throw commentsResult.error;
+    const post = state.posts.find(p => p.id === postId);
+    if (post) { post.likes = likesResult.data || []; post.comments = commentsResult.data || []; }
+    const likeButton = card.querySelector('[data-action="like"]');
+    if (likeButton) {
+      const liked = !!state.session?.user && (likesResult.data || []).some(x => x.user_id === state.session.user.id);
+      likeButton.classList.toggle('selected',liked);
+      likeButton.setAttribute('aria-pressed',String(liked));
+      const count = likeButton.querySelector('b'); if (count) count.textContent = String((likesResult.data || []).length);
+    }
+    const commentButton = card.querySelector('[data-action="comment"] b');
+    if (commentButton) commentButton.textContent = String((commentsResult.data || []).length);
+  }
   let reelObserver = null;
   function setupReelPlayback(root) {
     if (reelObserver) reelObserver.disconnect();
@@ -259,9 +289,9 @@
     }), {threshold:[0,0.65,1]});
     videos.forEach(video => reelObserver.observe(video));
   }
-  async function renderFeed() {
+  async function renderFeed({silent = false} = {}) {
     const target = $('#content');
-    target.innerHTML = '<div class="loading"><span class="spinner"></span><span>Carregando publicações…</span></div>';
+    if (!silent || !target.children.length) target.innerHTML = '<div class="loading"><span class="spinner"></span><span>Carregando publicações…</span></div>';
     try {
       state.posts = await fetchPosts();
       if (!state.posts.length) {
@@ -272,6 +302,7 @@
       setupReelPlayback(target);
     } catch (e) {
       console.error(e);
+      if (silent) return;
       target.innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('shield-check') + '</div><h2>Não foi possível carregar o feed</h2><p>' + esc(e.message || 'Verifique a conexão e as permissões do banco.') + '</p><button class="btn primary" data-action="refresh">Tentar novamente</button></section>';
     }
   }
@@ -591,7 +622,7 @@
       $('#pageTitle').textContent = 'Início';
       $('#feedFilters').hidden = false;
       $('#searchBar').hidden = true;
-      await renderFeed();
+      await renderFeed({silent:true});
       notice('Foto/vídeo publicado com sucesso.','success');
     } catch(e) { console.error(e); notice('Não foi possível publicar: '+(e.message || 'verifique o armazenamento do Supabase.'),'error'); }
     finally { setBusy(false); }
