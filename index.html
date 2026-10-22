@@ -738,6 +738,19 @@ input::placeholder,textarea::placeholder{color:#777b84}
 
 .install-app-button{flex:0 0 auto}.install-app-button .svg-icon{width:19px;height:19px}
 @media(max-width:680px){.top-actions .install-app-button{width:36px;height:36px;min-width:36px}}
+
+/* Feed scrolling fix: keep the document as the single scroll surface, without reel snap jumps. */
+html,body{overflow-x:clip}
+html{scroll-snap-type:none;overscroll-behavior-y:auto}
+#content:has(.reel-card){scroll-snap-type:none;align-items:stretch;gap:12px;overflow:visible}
+.reel-card{scroll-snap-align:none;scroll-margin-top:78px}
+.post-card,.reel-card{overflow-anchor:auto}
+@media(max-width:680px){
+  #content:has(.reel-card){display:flex;flex-direction:column;align-items:stretch;gap:12px;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+  .reel-card{min-height:0;height:auto;max-height:none;aspect-ratio:9/16}
+  .reel-video-wrap{height:100%;min-height:0}
+}
+
 </style>
 </head>
 <body>
