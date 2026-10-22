@@ -110,6 +110,18 @@ body{background:#090a0b;letter-spacing:0}
 .chat-bubble time{display:block;font-size:10px;opacity:.65;text-align:right;margin-top:5px}
 .chat-compose{display:flex;align-items:flex-end;gap:8px;padding:12px;border-top:1px solid #2a2b2e}
 .chat-compose textarea{flex:1;resize:none;min-width:0;max-height:120px;border:1px solid #303135;border-radius:10px;padding:10px 12px;background:#090a0b;color:white}
+.chat-compose textarea:focus{outline:none;border-color:#85868d;box-shadow:0 0 0 3px rgba(255,255,255,.055)}
+.chat-compose .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px}
+.chat-compose .svg-icon{width:16px;height:16px}
+.chat-attach{display:flex;align-items:center;justify-content:center;flex:0 0 42px;width:42px;height:42px;border:1px solid #303135;border-radius:10px;color:#e9e9eb;background:#17181a;cursor:pointer;font-size:23px;line-height:1}
+.chat-attach:hover{background:#242529;border-color:#55565d}
+.chat-typing{color:#b4b5bb;font-size:11px;font-style:italic}
+.chat-secure-label{font-size:10px;color:#b7b8be;border:1px solid #303135;border-radius:999px;padding:5px 8px;white-space:nowrap}
+.chat-bubble{animation:chat-bubble-in .16s ease-out}
+.chat-bubble.mine{color:#111}
+.chat-bubble.mine time{color:#444}
+.chat-media-hint{font-size:10px;color:#777980;margin:0;padding:0 14px 10px}
+@keyframes chat-bubble-in{from{opacity:.65;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
 .notification-row{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid #292a2d}
 .notification-row.unread{background:#17181a;margin:0 -10px;padding:14px 10px;border-radius:8px}
 .notification-row>div{min-width:0}.notification-row p{margin:4px 0;font-size:13px}.notification-row small{font-size:11px;color:var(--muted)}
@@ -768,8 +780,8 @@ input::placeholder,textarea::placeholder{color:#777b84}
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=55"></script>
-<script src="/app.js?v=55"></script>
+<script src="/config.js?v=56"></script>
+<script src="/app.js?v=56"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
