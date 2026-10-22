@@ -289,11 +289,33 @@
     }), {threshold:[0,0.65,1]});
     videos.forEach(video => reelObserver.observe(video));
   }
+  function reconcileFeedCards(posts, target) {
+    const current = new Map($('[data-post]', target).map(card => [card.dataset.post, card]));
+    const wanted = new Set(posts.map(post => String(post.id)));
+    for (const [id, card] of current) if (!wanted.has(id)) card.remove();
+    for (const post of posts) {
+      const id = String(post.id);
+      let card = current.get(id);
+      if (!card) {
+        const holder = document.createElement('div');
+        holder.innerHTML = renderPost(post);
+        card = holder.firstElementChild;
+      }
+      if (card) target.appendChild(card);
+    }
+    state.posts = posts;
+    setupReelPlayback(target);
+  }
   async function renderFeed({silent = false} = {}) {
     const target = $('#content');
     if (!silent || !target.children.length) target.innerHTML = '<div class="loading"><span class="spinner"></span><span>Carregando publicações…</span></div>';
     try {
-      state.posts = await fetchPosts();
+      const loadedPosts = await fetchPosts();
+      if (silent && target.querySelector('[data-post]') && loadedPosts.length) {
+        reconcileFeedCards(loadedPosts, target);
+        return;
+      }
+      state.posts = loadedPosts;
       if (!state.posts.length) {
         target.innerHTML = '<section class="empty-state"><div class="empty-mark">' + svgIcon('plus') + '</div><h2>' + (state.page==='explore'?'Nada encontrado por enquanto':'Sua comunidade começa aqui') + '</h2><p>' + (state.page==='explore'?'Tente outra busca ou volte mais tarde.':'Ainda não há publicações para mostrar. Seja a primeira pessoa a compartilhar algo.') + '</p><button class="btn primary" data-action="compose">Criar publicação</button></section>';
         return;
