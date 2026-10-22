@@ -722,6 +722,9 @@ input::placeholder,textarea::placeholder{color:#777b84}
 /* Realce breve para links diretos de publicações compartilhadas. */
 .shared-post-highlight{outline:2px solid #f5f5f5;outline-offset:4px;box-shadow:0 0 0 6px rgb(255 255 255 / 9%);transition:outline-color .2s ease,box-shadow .2s ease}
 @media(prefers-reduced-motion:reduce){.shared-post-highlight{transition:none}}
+
+.install-app-button{flex:0 0 auto}.install-app-button .svg-icon{width:19px;height:19px}
+@media(max-width:680px){.top-actions .install-app-button{width:36px;height:36px;min-width:36px}}
 </style>
 </head>
 <body>
@@ -744,7 +747,7 @@ input::placeholder,textarea::placeholder{color:#777b84}
     <div class="session-box"><strong>TeurChat</strong><br><span id="sessionHint">Entre para publicar, curtir e conversar.</span></div>
   </aside>
   <main class="main">
-    <header class="topbar"><h1 id="pageTitle">Início</h1><div class="top-actions"><button class="icon-btn" data-action="refresh" aria-label="Atualizar"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 12.5-3"/></svg></button><button class="btn primary" data-action="compose"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Publicar</button></div></header>
+    <header class="topbar"><h1 id="pageTitle">Início</h1><div class="top-actions"><button class="icon-btn install-app-button" data-action="install-app" aria-label="Instalar TeurChat" title="Instalar TeurChat"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5"/><path d="M5 17v3h14v-3"/></svg></button><button class="icon-btn" data-action="refresh" aria-label="Atualizar"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 12.5-3"/></svg></button><button class="btn primary" data-action="compose"><svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Publicar</button></div></header>
     <div class="feed-filters" id="feedFilters"><button class="filter active" data-feed-mode="all">Para você</button><button class="filter" data-feed-mode="following">Seguindo</button></div>
     <div class="search-bar" id="searchBar" hidden><form id="searchForm" class="search-form"><input id="searchInput" placeholder="Buscar publicações..." aria-label="Buscar publicações"><button class="btn primary" type="submit">Buscar</button><button class="btn secondary" type="button" data-action="open-people">Pessoas</button></form></div>
     <section id="content" aria-live="polite"><div class="loading"><span class="spinner"></span>Iniciando o TeurChat…</div></section>
@@ -765,8 +768,8 @@ input::placeholder,textarea::placeholder{color:#777b84}
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=54"></script>
-<script src="/app.js?v=54"></script>
+<script src="/config.js?v=55"></script>
+<script src="/app.js?v=55"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
