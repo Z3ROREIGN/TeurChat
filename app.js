@@ -286,7 +286,7 @@
     setTimeout(() => card.classList.remove('shared-post-highlight'), 2200);
   }
   async function fetchPosts(offset = 0) {
-    let query = state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url,signup_number,profile_badges(badge_key)),likes(user_id),comments(id)').order('created_at',{ascending:false}).limit(40);
+    let query = state.client.from('posts').select('id,user_id,title,body,media_url,media_type,created_at,profiles!posts_user_id_fkey(username,display_name,avatar_url,signup_number,profile_badges(badge_key)),likes(user_id),comments(id)').order('created_at',{ascending:false});
     if (state.page === 'explore' && state.search) query = query.ilike('body','%' + state.search.replace(/[%_]/g,'') + '%');
     if (state.feed === 'following' && isSignedIn()) {
       const {data: follows, error: fErr} = await state.client.from('follows').select('followed_id').eq('follower_id',state.session.user.id);
@@ -394,6 +394,7 @@
         holder.innerHTML = renderPost(newest[0]);
         if (first) target.insertBefore(holder.firstElementChild, first); else target.prepend(holder.firstElementChild);
         state.posts.unshift(newest[0]);
+        state.feedOffset += 1;
         setupReelPlayback(target);
       } catch (e) { console.warn('Não foi possível atualizar a publicação mais recente:', e); }
       return;
