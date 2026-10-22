@@ -2,7 +2,7 @@
   'use strict';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null, isAdmin: false, adminUsers: [], activeConversationId: null, chatChannel: null, followListMode: null, adminStats: {}, adminReports: [] };
+  const state = { client: null, session: null, profile: null, page: 'home', feed: 'all', posts: [], search: '', busy: false, badges: [], viewedProfileId: null, isAdmin: false, adminUsers: [], activeConversationId: null, chatChannel: null, followListMode: null, adminStats: {}, adminReports: [], realtimeChannel: null, realtimeTimer: null, rendering: false, pendingRealtimeRefresh: false };
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const initials = v => (String(v || 'U').trim()[0] || 'U').toUpperCase();
   const notice = (msg, type = '') => {
@@ -14,9 +14,13 @@
   const isSignedIn = () => !!state.session?.user;
   const authRequired = () => { if (!isSignedIn()) { openModal('auth'); notice('Entre na sua conta para continuar.'); return false; } return true; };
   const setBusy = (yes) => { state.busy = yes; $$('[data-busy]').forEach(b => { b.disabled = yes; }); };
-  function go(page) {
+  function go(page, writeHistory = true) {
     const allowed = ['home','explore','saved','messages','profile','notifications','admin','support'];
     state.page = allowed.includes(page) ? page : 'home';
+    if (writeHistory) {
+      const nextHash = '#' + state.page;
+      if (location.hash !== nextHash) history.pushState({ page: state.page }, '', nextHash);
+    }
     document.body.dataset.page = state.page;
     $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.go === state.page));
     $('#pageTitle').textContent = ({home:'Início',explore:'Explorar',saved:'Salvos',messages:'Mensagens',profile:'Meu perfil',notifications:'Notificações',admin:'Administração',support:'Central de ajuda'})[state.page];
@@ -50,7 +54,54 @@
       setTimeout(async () => { state.profile = null; if (session) await loadProfile().catch(console.error); updateAccountUI(); await renderPage().catch(console.error); }, 0);
     });
     updateAccountUI();
+    setupRealtime();
   }
+  function setupRealtime() {
+    if (!state.client || state.realtimeChannel) return;
+    const channel = state.client.channel('teurchat-live-updates');
+    ['posts','likes','comments','follows','profiles','notifications','messages','community_cases','reports','bookmarks'].forEach(table => {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table }, payload => {
+        // Avoid replacing a form while someone is typing or closing an interaction.
+        if (state.page === 'messages' && table === 'messages') {
+          if (state.activeConversationId) loadChatMessages(state.activeConversationId).catch(console.error);
+          loadChatList().catch(console.error);
+          return;
+        }
+        if ($('#modal')?.classList.contains('open') || ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
+          state.pendingRealtimeRefresh = true;
+          return;
+        }
+        clearTimeout(state.realtimeTimer);
+        state.realtimeTimer = setTimeout(() => {
+          if (document.visibilityState !== 'visible') { state.pendingRealtimeRefresh = true; return; }
+          renderPage().catch(err => console.error('Atualização em tempo real:', err));
+        }, 250);
+      });
+    });
+    state.realtimeChannel = channel.subscribe(status => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Canal em tempo real indisponível:', status);
+      }
+    });
+  }
+  document.addEventListener('focusout', () => {
+    if (!state.pendingRealtimeRefresh || $('#modal')?.classList.contains('open')) return;
+    setTimeout(() => {
+      if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
+      state.pendingRealtimeRefresh = false;
+      renderPage().catch(console.error);
+    }, 150);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.pendingRealtimeRefresh && !$('#modal')?.classList.contains('open')) {
+      state.pendingRealtimeRefresh = false;
+      renderPage().catch(console.error);
+    }
+  });
+  window.addEventListener('popstate', () => {
+    const requested = (location.hash || '#home').slice(1);
+    go(requested, false);
+  });
   async function loadProfile() {
     const user = state.session?.user;
     if (!user) { state.profile = null; state.badges = []; state.isAdmin = false; const adminNav = $('#adminNav'); if (adminNav) adminNav.hidden = true; return; }
@@ -710,5 +761,8 @@
     }
   }
   window.TeurChatApp={go,renderPage,refresh:()=>renderPage(),openAuth:()=>openModal('auth')};
+  // Restore an internal destination without forcing a browser navigation/reload.
+  const initialRoute = (location.hash || '#home').slice(1);
+  if (['home','explore','saved','messages','profile','notifications','admin','support'].includes(initialRoute)) state.page = initialRoute;
   init();
 })();
