@@ -771,7 +771,7 @@
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
   async function init() {
     updateAccountUI();
-    try { await ensureClient(); await renderPage(); }
+    try { await ensureClient(); if (state.page !== 'home') await go(state.page, false); else await renderPage(); }
     catch(e) {
       console.error('TeurChat initialization:',e);
       $('#content').innerHTML='<section class="empty-state"><div class="empty-mark">!</div><h2>O TeurChat não conseguiu conectar</h2><p>'+esc(e.message||'Verifique a conexão.')+'</p><button class="btn primary" data-action="refresh">Tentar novamente</button></section>';
