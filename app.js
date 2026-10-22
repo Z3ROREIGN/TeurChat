@@ -63,8 +63,10 @@
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, payload => {
         // Avoid replacing a form while someone is typing or closing an interaction.
         if (state.page === 'messages' && ['messages','conversations','conversation_members'].includes(table)) {
-          if (table === 'messages' && state.activeConversationId) loadChatMessages(state.activeConversationId).catch(console.error);
-          loadChatList().catch(console.error);
+          if (table === 'messages' && state.activeConversationId && payload.new?.conversation_id === state.activeConversationId) {
+            loadChatMessages(state.activeConversationId).catch(console.error);
+          }
+          loadChatList({reopenActive:false}).catch(console.error);
           return;
         }
         if ($('#modal')?.classList.contains('open') || ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
@@ -308,14 +310,14 @@
     $('#content').innerHTML='<section class="chat-layout"><aside class="chat-sidebar"><div class="section-heading"><div><p class="eyebrow">INBOX</p><h2>Mensagens</h2></div><button class="btn secondary" data-action="chat-refresh">↻</button></div><form id="chatSearchForm" class="search-form"><input id="chatSearch" placeholder="Buscar pessoa" autocomplete="off"><button class="btn secondary" type="submit">Buscar</button></form><div id="chatPeople"></div><div id="chatList"><div class="loading">Carregando conversas…</div></div></aside><section class="chat-window" id="chatWindow"><div class="empty-state"><h3>Suas conversas</h3><p>Escolha uma conversa ou procure uma pessoa para enviar mensagem.</p></div></section></section>';
     await loadChatList();
   }
-  async function loadChatList() {
+  async function loadChatList({reopenActive = true} = {}) {
     const box=$('#chatList');if(!box||!state.session?.user)return;
     const {data,error}=await state.client.from('conversations').select('id,created_at,conversation_members(user_id,profiles!conversation_members_user_id_fkey(id,username,display_name,avatar_url))').order('created_at',{ascending:false}).limit(100);
     if(error)throw error;
     const items=(data||[]).map(c=>({...c,other:(c.conversation_members||[]).find(m=>m.user_id!==state.session.user.id)?.profiles})).filter(c=>c.other);
     box.innerHTML=items.length?items.map(c=>'<button class="chat-person '+(state.activeConversationId===c.id?'active':'')+'" data-action="open-chat" data-id="'+esc(c.id)+'">'+avatar(c.other)+'<span><strong>'+esc(c.other.display_name||c.other.username)+'</strong><small>@'+esc(c.other.username)+'</small></span></button>').join(''):'<p class="muted small">Nenhuma conversa ainda. Busque uma pessoa acima para começar.</p>';
     if(state.activeConversationId&&!items.some(c=>c.id===state.activeConversationId))state.activeConversationId=null;
-    if(state.activeConversationId)await openConversation(state.activeConversationId);
+    if(reopenActive && state.activeConversationId)await openConversation(state.activeConversationId);
   }
   async function searchChatPeople(term) {
     const out=$('#chatPeople');if(!out)return;
@@ -338,8 +340,6 @@
     const other=(members||[]).find(m=>m.user_id!==state.session.user.id)?.profiles||{};
     box.innerHTML='<header class="chat-header">'+avatar(other)+'<div><strong>'+esc(other.display_name||other.username||'Conversa')+'</strong><small>@'+esc(other.username||'usuario')+'</small></div><button class="btn secondary" data-action="chat-refresh">Atualizar</button></header><div id="chatMessages" class="chat-messages"><div class="loading">Carregando mensagens…</div></div><form id="messageForm" data-conversation-id="'+esc(conversationId)+'" class="chat-compose"><label class="chat-attach" title="Enviar foto ou vídeo">＋<input name="attachment" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label><textarea name="body" maxlength="2000" rows="1" placeholder="Escreva uma mensagem…"></textarea><button class="btn primary" type="submit">Enviar</button></form><p class="chat-media-hint">Fotos ou vídeos de até 200 MB; vídeos de até 10 minutos.</p>';
     await loadChatMessages(conversationId);
-    if(state.chatChannel){state.client.removeChannel(state.chatChannel);state.chatChannel=null;}
-    state.chatChannel=state.client.channel('chat-'+conversationId).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'conversation_id=eq.'+conversationId},()=>loadChatMessages(conversationId).catch(console.error)).subscribe();
   }
   async function loadChatMessages(conversationId) {
     const box=$('#chatMessages');if(!box)return;
@@ -583,7 +583,15 @@
       if (error) { await state.client.storage.from('teur-media').remove([uploaded.path]); throw error; }
       closeModal();
       state.feed='all';
-      if (state.page === 'home' || state.page === 'explore') {
+      state.page = 'home';
+      state.viewedProfileId = null;
+      document.body.dataset.page = 'home';
+      if (location.hash !== '#home') history.replaceState({page:'home'}, '', '#home');
+      $('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.go === 'home'));
+      $('#pageTitle').textContent = 'Início';
+      $('#feedFilters').hidden = false; $('#searchBar').hidden = true;
+      await renderFeed();
+      if (false) {
         state.page = 'home';
         document.body.dataset.page = 'home';
         if (location.hash !== '#home') history.replaceState({page:'home'}, '', '#home');
