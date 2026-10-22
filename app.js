@@ -489,7 +489,7 @@
     const fd=new FormData(form),body=String(fd.get('body')||'').trim(),file=fd.get('attachment'),conversation_id=form.dataset.conversationId;
     if(!body&&(!file||!file.size)){notice('Digite uma mensagem ou escolha uma foto/vídeo para anexar.','error');return;}
     if(file&&file.size>200*1024*1024){notice('O arquivo ultrapassa 200 MB.','error');return;}
-    if(file&&(!file.type.startsWith('image/')&&!file.type.startsWith('video/'))){notice('Envie uma foto ou vídeo compatível.','error');return;}
+    if(file&&file.size&&(!file.type.startsWith('image/')&&!file.type.startsWith('video/'))){notice('Envie uma foto ou vídeo compatível.','error');return;}
     const submit=form.querySelector('button[type=submit]');if(submit)submit.disabled=true;
     try{
       let attachment_url=null,attachment_type=null,attachment_name=null;
