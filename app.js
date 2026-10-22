@@ -425,7 +425,7 @@
     if(memberError)throw memberError;
     if(state.activeConversationId!==conversationId)return;
     const other=(members||[]).find(m=>m.user_id!==state.session.user.id)?.profiles||{};
-    box.innerHTML='<header class="chat-header">'+avatar(other)+'<div><strong>'+esc(other.display_name||other.username||'Conversa')+'</strong><small>@'+esc(other.username||'usuario')+' · <span id="chatPresence" class="chat-presence">Conectando…</span> <span id="chatTyping" class="chat-typing" aria-live="polite"></span></small></div><span class="chat-secure-label">Conversa privada</span></header><div id="chatMessages" class="chat-messages" aria-live="polite"><div class="loading">Carregando mensagens…</div></div><form id="messageForm" data-conversation-id="'+esc(conversationId)+'" class="chat-compose"><label class="chat-attach" title="Enviar foto ou vídeo" aria-label="Anexar foto ou vídeo">＋<input name="attachment" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label><textarea name="body" maxlength="2000" rows="1" placeholder="Escreva uma mensagem…" aria-label="Escreva uma mensagem"></textarea><button class="btn primary" type="submit">'+svgIcon('message')+'<span>Enviar</span></button></form><p class="chat-media-hint">Fotos ou vídeos de até 200 MB; vídeos de até 10 minutos.</p>';
+    box.innerHTML='<header class="chat-header">'+avatar(other)+'<div><strong>'+esc(other.display_name||other.username||'Conversa')+'</strong><small>@'+esc(other.username||'usuario')+' · <span id="chatPresence" class="chat-presence">Conectando…</span> <span id="chatTyping" class="chat-typing" aria-live="polite"></span></small></div><span class="chat-secure-label">Conversa privada</span></header><div id="chatMessages" class="chat-messages" aria-live="polite"><div class="loading">Carregando mensagens…</div></div><form id="messageForm" data-conversation-id="'+esc(conversationId)+'" class="chat-compose"><label class="chat-attach" title="Enviar foto ou vídeo" aria-label="Anexar foto ou vídeo">＋<input name="attachment" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label><textarea name="body" maxlength="2000" rows="1" placeholder="Escreva uma mensagem…" aria-label="Escreva uma mensagem"></textarea><button class="btn primary" type="submit">'+svgIcon('message')+'<span>Enviar</span></button></form><p class="chat-media-hint">Foto ou vídeo é opcional. Você pode enviar só texto. Anexos: até 200 MB; vídeos de até 10 minutos.</p>';
     await setupConversationRealtime(conversationId);
     await loadChatMessages(conversationId);
   }
@@ -487,7 +487,7 @@
   async function sendMessage(form) {
     if(!authRequired())return;
     const fd=new FormData(form),body=String(fd.get('body')||'').trim(),file=fd.get('attachment'),conversation_id=form.dataset.conversationId;
-    if(!body&&(!file||!file.size))return;
+    if(!body&&(!file||!file.size)){notice('Digite uma mensagem ou escolha uma foto/vídeo para anexar.','error');return;}
     if(file&&file.size>200*1024*1024){notice('O arquivo ultrapassa 200 MB.','error');return;}
     if(file&&(!file.type.startsWith('image/')&&!file.type.startsWith('video/'))){notice('Envie uma foto ou vídeo compatível.','error');return;}
     const submit=form.querySelector('button[type=submit]');if(submit)submit.disabled=true;
