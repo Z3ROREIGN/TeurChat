@@ -425,7 +425,7 @@
     if(memberError)throw memberError;
     if(state.activeConversationId!==conversationId)return;
     const other=(members||[]).find(m=>m.user_id!==state.session.user.id)?.profiles||{};
-    box.innerHTML='<header class="chat-header">'+avatar(other)+'<div><strong>'+esc(other.display_name||other.username||'Conversa')+'</strong><small>@'+esc(other.username||'usuario')+' · <span id="chatTyping" class="chat-typing" aria-live="polite"></span></small></div><span class="chat-secure-label">Conversa privada</span></header><div id="chatMessages" class="chat-messages" aria-live="polite"><div class="loading">Carregando mensagens…</div></div><form id="messageForm" data-conversation-id="'+esc(conversationId)+'" class="chat-compose"><label class="chat-attach" title="Enviar foto ou vídeo" aria-label="Anexar foto ou vídeo">＋<input name="attachment" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label><textarea name="body" maxlength="2000" rows="1" placeholder="Escreva uma mensagem…" aria-label="Escreva uma mensagem"></textarea><button class="btn primary" type="submit">'+svgIcon('message')+'<span>Enviar</span></button></form><p class="chat-media-hint">Fotos ou vídeos de até 200 MB; vídeos de até 10 minutos.</p>';
+    box.innerHTML='<header class="chat-header">'+avatar(other)+'<div><strong>'+esc(other.display_name||other.username||'Conversa')+'</strong><small>@'+esc(other.username||'usuario')+' · <span id="chatPresence" class="chat-presence">Conectando…</span> <span id="chatTyping" class="chat-typing" aria-live="polite"></span></small></div><span class="chat-secure-label">Conversa privada</span></header><div id="chatMessages" class="chat-messages" aria-live="polite"><div class="loading">Carregando mensagens…</div></div><form id="messageForm" data-conversation-id="'+esc(conversationId)+'" class="chat-compose"><label class="chat-attach" title="Enviar foto ou vídeo" aria-label="Anexar foto ou vídeo">＋<input name="attachment" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label><textarea name="body" maxlength="2000" rows="1" placeholder="Escreva uma mensagem…" aria-label="Escreva uma mensagem"></textarea><button class="btn primary" type="submit">'+svgIcon('message')+'<span>Enviar</span></button></form><p class="chat-media-hint">Fotos ou vídeos de até 200 MB; vídeos de até 10 minutos.</p>';
     await setupConversationRealtime(conversationId);
     await loadChatMessages(conversationId);
   }
@@ -441,6 +441,13 @@
         clearTimeout(state.chatTypingHideTimer);
         if(payload?.is_typing)state.chatTypingHideTimer=setTimeout(()=>{const current=$('#chatTyping');if(current)current.textContent='';},2200);
       })
+      .on('presence',{event:'sync'},()=>{
+        if(state.activeConversationId!==conversationId)return;
+        const presence=channel.presenceState();
+        const online=Object.values(presence).flat().some(person=>person.user_id&&person.user_id!==state.session?.user?.id);
+        const label=$('#chatPresence');
+        if(label){label.textContent=online?'online agora':'offline';label.classList.toggle('is-online',online);}
+      })
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'conversation_id=eq.'+conversationId},payload=>{
         if(state.activeConversationId!==conversationId)return;
         clearTimeout(state.chatMessageRefreshTimer);
@@ -448,6 +455,7 @@
       })
       .subscribe(status=>{
         state.chatChannelReady=status==='SUBSCRIBED';
+        if(status==='SUBSCRIBED')channel.track({user_id:state.session?.user?.id,display_name:state.profile?.display_name||state.profile?.username||'Usuário',online_at:new Date().toISOString()}).catch(err=>console.debug('Presença indisponível:',err));
         if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.warn('Canal da conversa indisponível:',status);
       });
     state.chatChannel=channel;
