@@ -766,6 +766,33 @@ html{scroll-snap-type:none;overscroll-behavior-y:auto}
 .badge-detail.badge-early_user_number{border-color:#b88a27;background:linear-gradient(135deg,#33270d,#17140d)}
 @media(max-width:680px){.feed-next{width:calc(100% - 16px);margin:16px auto 26px}.profile-badge{max-width:100%;white-space:normal}}
 
+
+/* Video player controls */
+.reel-player-controls{position:absolute;z-index:4;left:12px;right:76px;bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:9px;border:1px solid #ffffff2a;border-radius:12px;background:#08090bd9;backdrop-filter:blur(12px)}
+.video-control{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:32px;padding:6px 9px;border:1px solid #ffffff2e;border-radius:8px;background:#191b20;color:#fff;font-size:11px;font-weight:750}
+.video-control:active{background:#353941}
+.video-time{font-size:10px;color:#e6e8eb;font-variant-numeric:tabular-nums;white-space:nowrap}
+.video-seek{flex:1 1 100%;width:100%;height:16px;padding:0!important;accent-color:#fff;cursor:pointer;background:transparent!important;border:0!important;box-shadow:none!important}
+.reel-player-controls .video-seek{margin:0}
+.group-avatar{display:grid;place-items:center;font-size:22px;background:#20242b;border-color:#424751}
+.group-create-panel{padding:12px 4px}
+.group-create-panel label{display:grid;gap:8px;font-size:12px;font-weight:700}
+.group-create-panel form>label{margin-bottom:12px}
+.group-create-panel .btn{margin-top:12px}
+.group-choice{display:flex!important;align-items:center;gap:10px;padding:9px;border:1px solid var(--tc-border,#292a30);border-radius:10px;margin:5px 0!important;cursor:pointer}
+.group-choice>input{width:18px;height:18px;flex:0 0 auto;accent-color:#fff}
+.group-choice>span{display:flex;align-items:center;gap:9px;min-width:0}
+.group-choice>span>span{display:grid;gap:3px;min-width:0}
+.group-choice small{color:var(--tc-muted,#a0a6b0)}
+.staff-hire-form{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;margin:18px 0;padding:15px;border:1px solid var(--tc-border,#292a30);border-radius:12px;background:#0b0c0f}
+.staff-hire-form label{display:grid;gap:8px;font-size:12px;font-weight:700}
+.staff-hire-form select,.group-create-panel select{width:100%;min-width:0;border:1px solid var(--tc-border,#292a30);border-radius:10px;background:#090a0c;color:var(--tc-text,#f6f7f8);padding:11px}
+.staff-list{display:grid;gap:8px}
+.staff-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid var(--tc-border,#292a30);border-radius:12px;background:#0c0d10}
+.staff-row>div{display:grid;gap:4px;min-width:0}
+.staff-row span,.staff-row small{font-size:12px;color:var(--tc-muted,#a0a6b0);overflow-wrap:anywhere}
+@media(max-width:680px){.reel-player-controls{left:7px;right:60px;bottom:7px;gap:5px;padding:7px}.video-control{min-height:29px;padding:5px 7px;font-size:10px}.video-time{font-size:9px}.staff-hire-form{grid-template-columns:1fr}.staff-row{align-items:flex-start}.staff-row .btn{padding:8px;font-size:11px;min-height:34px}.group-choice{padding:7px}}
+
 </style>
 </head>
 <body>
@@ -809,8 +836,8 @@ html{scroll-snap-type:none;overscroll-behavior-y:auto}
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=65"></script>
-<script src="/app.js?v=65"></script>
+<script src="/config.js?v=66"></script>
+<script src="/app.js?v=66"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
