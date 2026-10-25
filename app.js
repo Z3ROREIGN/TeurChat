@@ -527,8 +527,18 @@
   }
 
   async function renderMessagesPage() {
-    $('#content').innerHTML='<section class="chat-layout"><aside class="chat-sidebar"><div class="section-heading"><div><p class="eyebrow">INBOX</p><h2>Mensagens</h2></div><button class="btn secondary" data-action="chat-refresh">↻</button><button class="btn primary" data-action="create-group">+ Grupo</button></div><form id="chatSearchForm" class="search-form"><input id="chatSearch" placeholder="Buscar pessoa" autocomplete="off"><button class="btn secondary" type="submit">Buscar</button></form><div id="chatPeople"></div><div id="chatList"><div class="loading">Carregando conversas…</div></div></aside><section class="chat-window" id="chatWindow"><div class="empty-state"><h3>Suas conversas</h3><p>Escolha uma conversa ou procure uma pessoa para enviar mensagem.</p></div></section></section>';
+    $('#content').innerHTML='<section class="chat-layout"><aside class="chat-sidebar"><div class="section-heading"><div><p class="eyebrow">INBOX</p><h2>Mensagens</h2></div><button class="btn secondary" data-action="chat-refresh">↻</button><button class="btn primary" data-action="create-group">+ Grupo</button></div><form id="chatSearchForm" class="search-form"><input id="chatSearch" placeholder="Buscar pessoa" autocomplete="off"><button class="btn secondary" type="submit">Buscar</button></form><div id="chatOfficialContact" class="chat-official-contact"></div><div id="chatPeople"></div><div id="chatList"><div class="loading">Carregando conversas…</div></div></aside><section class="chat-window" id="chatWindow"><div class="empty-state"><h3>Suas conversas</h3><p>Escolha uma conversa ou procure uma pessoa para enviar mensagem.</p></div></section></section>';
     await loadChatList();
+    await loadOfficialChatShortcut();
+  }
+  async function loadOfficialChatShortcut() {
+    const box=$('#chatOfficialContact');
+    if(!box||!state.session?.user)return;
+    if(String(state.session.user.id)==='503d929b-dd1f-4190-a41c-754de3edbdd0'){box.innerHTML='';return;}
+    const {data,error}=await state.client.from('profiles').select('id,username,display_name,avatar_url').eq('username','teurchat').maybeSingle();
+    if(error){console.warn('Não foi possível carregar o contato oficial:',error);return;}
+    if(!data){box.innerHTML='';return;}
+    box.innerHTML='<p class="chat-list-label">CONTATO OFICIAL</p><button class="chat-person chat-official-person" data-action="start-chat" data-id="'+esc(data.id)+'" data-username="'+esc(data.username||'TeurChat')+'">'+avatar(data)+'<span><strong>' + esc(data.display_name||'TeurChat') + ' <span class="chat-official-mark">✓</span></strong><small>@teurChat · Conta oficial</small></span><b>›</b></button>';
   }
   async function loadChatList({reopenActive = true} = {}) {
     const box=$('#chatList');if(!box||!state.session?.user)return;
@@ -1105,8 +1115,10 @@
   document.addEventListener('change',async e=>{if(['adminCaseFilter','adminCaseCategory','adminCasePriority'].includes(e.target?.id)){try{await loadAdminCases()}catch(err){notice(err.message||'Falha ao filtrar chamados.','error')}}if(e.target?.id==='adminReportFilter'){try{await loadAdminReports()}catch(err){notice(err.message||'Falha ao filtrar denúncias.','error')}}});
   document.addEventListener('click', async e => {
     const target=e.target instanceof Element?e.target:null; if(!target)return;
+    const tappedReel=target.closest('video.reel-media');
+    if(tappedReel){const card=tappedReel.closest('.reel-card');if(card){const visible=card.classList.toggle('reel-controls-visible');if(visible){clearTimeout(card._controlsHideTimer);card._controlsHideTimer=setTimeout(()=>card.classList.remove('reel-controls-visible'),4500);}}return;}
     const nav=target.closest('[data-go]'); if(nav){e.preventDefault();go(nav.dataset.go);return;}
-    const act=target.closest('[data-action]');if(act){e.preventDefault();try{await handleAction(act.dataset.action,act);}catch(err){console.error(err);notice(err.message||'A ação falhou.','error');}return;}
+    const act=target.closest('[data-action]');if(act){e.preventDefault();const reel=act.closest('.reel-card');if(reel&&act.classList.contains('video-control')){reel.classList.add('reel-controls-visible');clearTimeout(reel._controlsHideTimer);reel._controlsHideTimer=setTimeout(()=>reel.classList.remove('reel-controls-visible'),4500);}try{await handleAction(act.dataset.action,act);}catch(err){console.error(err);notice(err.message||'A ação falhou.','error');}return;}
     const feed=target.closest('[data-feed-mode]');if(feed){state.feed=feed.dataset.feedMode;$$('[data-feed-mode]').forEach(b=>b.classList.toggle('active',b===feed));await renderFeed().catch(err=>notice(err.message,'error'));return;}
     const mode=target.closest('[data-auth-mode]');if(mode){const form=$('#authForm');form.dataset.mode=mode.dataset.authMode;$('#authTitle').textContent=mode.dataset.authMode==='signup'?'Crie sua conta':'Entre na sua conta';$('#signupFields').hidden=mode.dataset.authMode!=='signup';$('#authSubmit').textContent=mode.dataset.authMode==='signup'?'Criar conta':'Entrar';$$('[data-auth-mode]').forEach(b=>b.classList.toggle('active',b===mode));return;}
     if(target.id==='modal'){closeModal();}
