@@ -248,7 +248,7 @@
     const authorAvatar = profile.avatar_url || '';
     const profileData = ' data-username="' + esc(authorUsername) + '" data-display-name="' + esc(authorName) + '" data-avatar-url="' + esc(authorAvatar) + '"';
     const author = '<button class="avatar-button" data-action="view-profile" data-id="' + esc(p.user_id) + '"' + profileData + ' aria-label="Ver perfil">' + avatar(profile) + '</button><button class="post-author profile-open" data-action="view-profile" data-id="' + esc(p.user_id) + '"' + profileData + '><strong>' + esc(authorName) + '</strong><span>@' + esc(authorUsername || 'usuario') + '</span></button>';
-    const media = p.media_url ? (type === 'video' ? '<video class="post-media' + (isReel?' reel-media':'') + '" src="' + esc(p.media_url) + '" ' + (isReel?'autoplay muted loop':'controls') + ' playsinline preload="metadata"></video>' : '<img class="post-media' + (isReel?' reel-image':'') + '" src="' + esc(p.media_url) + '" alt="' + esc(p.title || 'Foto da publicação') + '" loading="lazy">') : '';
+    const media = p.media_url ? (type === 'video' ? (isReel ? '<video class="post-media reel-media" src="' + esc(p.media_url) + '" autoplay muted loop playsinline preload="metadata"></video><div class="reel-player-controls"><button class="video-control" type="button" data-action="toggle-video" data-id="' + esc(p.id) + '" aria-label="Pausar vídeo">Ⅱ Pausar</button><button class="video-control" type="button" data-action="toggle-mute" data-id="' + esc(p.id) + '" aria-label="Ativar som">♫ Som</button><button class="video-control" type="button" data-action="video-fullscreen" data-id="' + esc(p.id) + '" aria-label="Tela cheia">⛶ Tela cheia</button><span class="video-time" data-video-time="' + esc(p.id) + '">0:00 / 0:00</span><input class="video-seek" type="range" min="0" max="1000" value="0" step="1" data-video-seek="' + esc(p.id) + '" aria-label="Posição do vídeo"></div>' : '<video class="post-media" src="' + esc(p.media_url) + '" controls playsinline preload="metadata"></video>') : '<img class="post-media' + (isReel?' reel-image':'') + '" src="' + esc(p.media_url) + '" alt="' + esc(p.title || 'Foto da publicação') + '" loading="lazy">') : '';
     const actions = '<button class="action ' + (liked?'selected':'') + '" data-action="like" data-id="' + esc(p.id) + '" aria-label="Curtir" aria-pressed="' + (liked?'true':'false') + '"><span>' + svgIcon('heart') + '</span><b>' + likes + '</b></button><button class="action" data-action="comment" data-id="' + esc(p.id) + '" aria-label="Comentários"><span>' + svgIcon('comment') + '</span><b>' + comments + '</b></button><button class="action" data-action="save" data-id="' + esc(p.id) + '" aria-label="Salvar"><span>' + svgIcon('bookmark') + '</span><b>Salvar</b></button><button class="action share-action" data-action="share" data-id="' + esc(p.id) + '" aria-label="Compartilhar"><span>' + svgIcon('share') + '</span><b>Enviar</b></button>';
     if (isReel) {
       return '<article class="post-card reel-card" data-post="' + esc(p.id) + '"><div class="reel-video-wrap">' + media + '<div class="reel-shade"></div></div><div class="reel-top">' + author + '<button class="icon-btn post-more" data-action="post-more" data-id="' + esc(p.id) + '" aria-label="Mais opções">' + svgIcon('more') + '</button></div><div class="reel-caption">' + (p.title?'<h3 class="post-title">' + esc(p.title) + '</h3>':'') + '<p>' + esc(p.body || '') + '</p><span class="reel-audio">♫  Áudio original · @' + esc(profile.username || 'usuario') + '</span></div><div class="reel-actions">' + actions + '</div></article>';
@@ -527,15 +527,15 @@
   }
 
   async function renderMessagesPage() {
-    $('#content').innerHTML='<section class="chat-layout"><aside class="chat-sidebar"><div class="section-heading"><div><p class="eyebrow">INBOX</p><h2>Mensagens</h2></div><button class="btn secondary" data-action="chat-refresh">↻</button></div><form id="chatSearchForm" class="search-form"><input id="chatSearch" placeholder="Buscar pessoa" autocomplete="off"><button class="btn secondary" type="submit">Buscar</button></form><div id="chatPeople"></div><div id="chatList"><div class="loading">Carregando conversas…</div></div></aside><section class="chat-window" id="chatWindow"><div class="empty-state"><h3>Suas conversas</h3><p>Escolha uma conversa ou procure uma pessoa para enviar mensagem.</p></div></section></section>';
+    $('#content').innerHTML='<section class="chat-layout"><aside class="chat-sidebar"><div class="section-heading"><div><p class="eyebrow">INBOX</p><h2>Mensagens</h2></div><button class="btn secondary" data-action="chat-refresh">↻</button><button class="btn primary" data-action="create-group">+ Grupo</button></div><form id="chatSearchForm" class="search-form"><input id="chatSearch" placeholder="Buscar pessoa" autocomplete="off"><button class="btn secondary" type="submit">Buscar</button></form><div id="chatPeople"></div><div id="chatList"><div class="loading">Carregando conversas…</div></div></aside><section class="chat-window" id="chatWindow"><div class="empty-state"><h3>Suas conversas</h3><p>Escolha uma conversa ou procure uma pessoa para enviar mensagem.</p></div></section></section>';
     await loadChatList();
   }
   async function loadChatList({reopenActive = true} = {}) {
     const box=$('#chatList');if(!box||!state.session?.user)return;
-    const {data,error}=await state.client.from('conversations').select('id,created_at,conversation_members(user_id,profiles!conversation_members_user_id_fkey(id,username,display_name,avatar_url))').order('created_at',{ascending:false}).limit(100);
+    const {data,error}=await state.client.from('conversations').select('id,created_at,conversation_type,title,conversation_members(user_id,profiles!conversation_members_user_id_fkey(id,username,display_name,avatar_url))').order('created_at',{ascending:false}).limit(100);
     if(error)throw error;
-    const items=(data||[]).map(c=>({...c,other:(c.conversation_members||[]).find(m=>m.user_id!==state.session.user.id)?.profiles})).filter(c=>c.other);
-    box.innerHTML=items.length?items.map(c=>'<button class="chat-person '+(state.activeConversationId===c.id?'active':'')+'" data-action="open-chat" data-id="'+esc(c.id)+'">'+avatar(c.other)+'<span><strong>'+esc(c.other.display_name||c.other.username)+'</strong><small>@'+esc(c.other.username)+'</small></span></button>').join(''):'<p class="muted small">Nenhuma conversa ainda. Busque uma pessoa acima para começar.</p>';
+    const items=(data||[]).map(c=>({...c,other:(c.conversation_members||[]).find(m=>m.user_id!==state.session.user.id)?.profiles})).filter(c=>c.other||c.conversation_type!=='direct');
+    box.innerHTML=items.length?items.map(c=>{const group=c.conversation_type!=='direct';const title=group?(c.title||(c.conversation_type==='staff'?'Equipe TeurChat':'Grupo')):(c.other.display_name||c.other.username);const sub=group?((c.conversation_type==='staff'?'Equipe oficial':'Grupo')+' · '+(c.conversation_members||[]).length+' pessoas'):'@'+(c.other.username||'usuario');return '<button class="chat-person '+(state.activeConversationId===c.id?'active':'')+'" data-action="open-chat" data-id="'+esc(c.id)+'">'+(group?'<span class="avatar group-avatar">♧</span>':avatar(c.other))+'<span><strong>'+esc(title)+'</strong><small>'+esc(sub)+'</small></span></button>';}).join(''):'<p class="muted small">Nenhuma conversa ainda. Busque uma pessoa acima ou crie um grupo.</p>';
     if(state.activeConversationId&&!items.some(c=>c.id===state.activeConversationId))state.activeConversationId=null;
     if(reopenActive && state.activeConversationId)await openConversation(state.activeConversationId);
   }
@@ -555,11 +555,13 @@
   async function openConversation(conversationId) {
     state.activeConversationId=conversationId;
     const box=$('#chatWindow');if(!box)return;
-    const {data:members,error:memberError}=await state.client.from('conversation_members').select('user_id,profiles!conversation_members_user_id_fkey(id,username,display_name,avatar_url)').eq('conversation_id',conversationId);
-    if(memberError)throw memberError;
+    const [{data:members,error:memberError},{data:conversation,error:conversationError}]=await Promise.all([state.client.from('conversation_members').select('user_id,profiles!conversation_members_user_id_fkey(id,username,display_name,avatar_url)').eq('conversation_id',conversationId),state.client.from('conversations').select('conversation_type,title').eq('id',conversationId).maybeSingle()]);
+    if(memberError)throw memberError;if(conversationError)throw conversationError;
     if(state.activeConversationId!==conversationId)return;
     const other=(members||[]).find(m=>m.user_id!==state.session.user.id)?.profiles||{};
-    box.innerHTML='<header class="chat-header">'+avatar(other)+'<div><strong>'+esc(other.display_name||other.username||'Conversa')+'</strong><small>@'+esc(other.username||'usuario')+' · <span id="chatPresence" class="chat-presence">Conectando…</span> <span id="chatTyping" class="chat-typing" aria-live="polite"></span></small></div><span class="chat-secure-label">Conversa privada</span></header><div id="chatMessages" class="chat-messages" aria-live="polite"><div class="loading">Carregando mensagens…</div></div><form id="messageForm" data-conversation-id="'+esc(conversationId)+'" class="chat-compose"><label class="chat-attach" title="Enviar foto ou vídeo" aria-label="Anexar foto ou vídeo">＋<input name="attachment" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label><textarea name="body" maxlength="2000" rows="1" placeholder="Escreva uma mensagem…" aria-label="Escreva uma mensagem"></textarea><button class="btn primary" type="submit">'+svgIcon('message')+'<span>Enviar</span></button></form><p class="chat-media-hint">Foto ou vídeo é opcional. Você pode enviar só texto. Anexos: até 200 MB; vídeos de até 10 minutos.</p>';
+    const isGroup=conversation?.conversation_type!=='direct',conversationTitle=isGroup?(conversation?.title||(conversation?.conversation_type==='staff'?'Equipe TeurChat':'Grupo')):(other.display_name||other.username||'Conversa');
+    const conversationSub=isGroup?((conversation?.conversation_type==='staff'?'Equipe oficial':'Grupo')+' · '+(members||[]).length+' participantes'):'@'+(other.username||'usuario')+' · <span id="chatPresence" class="chat-presence">Conectando…</span>';
+    box.innerHTML='<header class="chat-header">'+(isGroup?'<span class="avatar group-avatar">♧</span>':avatar(other))+'<div><strong>'+esc(conversationTitle)+'</strong><small>'+conversationSub+' <span id="chatTyping" class="chat-typing" aria-live="polite"></span></small></div><span class="chat-secure-label">'+(conversation?.conversation_type==='staff'?'Equipe interna':isGroup?'Grupo privado':'Conversa privada')+'</span></header><div id="chatMessages" class="chat-messages" aria-live="polite"><div class="loading">Carregando mensagens…</div></div><form id="messageForm" data-conversation-id="'+esc(conversationId)+'" class="chat-compose"><label class="chat-attach" title="Enviar foto ou vídeo" aria-label="Anexar foto ou vídeo">＋<input name="attachment" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden></label><textarea name="body" maxlength="2000" rows="1" placeholder="Escreva uma mensagem…" aria-label="Escreva uma mensagem"></textarea><button class="btn primary" type="submit">'+svgIcon('message')+'<span>Enviar</span></button></form><p class="chat-media-hint">Foto ou vídeo é opcional. Você pode enviar só texto. Anexos: até 200 MB; vídeos de até 10 minutos.</p>';
     await setupConversationRealtime(conversationId);
     await loadChatMessages(conversationId);
   }
@@ -671,15 +673,56 @@
     try{const {data,error}=await state.client.rpc('submit_community_case',{case_category:String(fd.get('category')),case_subject:String(fd.get('subject')).trim(),case_message:String(fd.get('message')).trim(),case_target_username:String(fd.get('target_username')||'').trim().replace(/^@/,'')||null,case_target_url:String(fd.get('target_url')||'').trim()||null});if(error)throw error;form.reset();notice('Chamado enviado. Protocolo: '+String(data).slice(0,8).toUpperCase(),'success');await loadMyCases();}
     catch(e){notice(e.message||'Não foi possível enviar o chamado.','error');}finally{setBusy(false);}
   }
+
+  function isOfficialAccount(){return state.profile?.username?.toLowerCase()==='teurchat';}
+  async function renderStaffManagement(){
+    const root=$('#staffManagement');if(!root||!isOfficialAccount())return;
+    const {data:staff,error}=await state.client.rpc('teurchat_list_staff');if(error)throw error;
+    const current=staff||[],hired=new Set(current.map(x=>x.user_id)),available=(state.adminUsers||[]).filter(u=>!hired.has(u.id)&&u.id!==state.session?.user?.id);
+    const departments=[['community','Comunidade'],['moderation','Moderação e segurança'],['support','Suporte'],['engineering','Engenharia'],['content','Conteúdo e notícias'],['partnerships','Parcerias']];
+    root.innerHTML='<div class="section-heading"><div><p class="eyebrow">RECURSOS HUMANOS</p><h3>Contratar funcionários</h3><p class="muted small">Cada funcionário pertence a uma única área. A contratação concede a insígnia Administrador e adiciona automaticamente ao grupo interno.</p></div></div><form id="staffHireForm" class="staff-hire-form"><label>Conta<select name="target_user" required>'+available.map(u=>'<option value="'+esc(u.id)+'">@'+esc(u.username)+' — '+esc(u.display_name||u.username)+'</option>').join('')+'</select></label><label>Área exclusiva<select name="department" required>'+departments.map(d=>'<option value="'+d[0]+'">'+d[1]+'</option>').join('')+'</select></label><button class="btn primary" type="submit" '+(!available.length?'disabled':'')+'>Contratar funcionário</button></form><div class="staff-list">'+(current.length?current.map(u=>'<article class="staff-row"><div><strong>'+esc(u.display_name||u.username)+'</strong><span>@'+esc(u.username)+'</span><small>'+esc(departments.find(d=>d[0]===u.department)?.[1]||u.department)+' · contratado em '+esc(new Date(u.hired_at).toLocaleDateString('pt-BR'))+'</small></div><button class="btn danger" data-action="staff-dismiss" data-id="'+esc(u.user_id)+'" data-username="'+esc(u.username)+'">Desligar</button></article>').join(''):'<p class="muted">Ainda não há funcionários contratados.</p>')+'</div><p class="muted small">A insígnia da conta oficial @TeurChat é protegida. Administradores podem conceder/remover apenas Caçador de Bugs, Verificado e Parceiro.</p>';
+  }
+  async function hireStaffFromForm(form){
+    if(!isOfficialAccount())throw new Error('Somente @TeurChat pode contratar funcionários.');
+    const fd=new FormData(form),target_user=String(fd.get('target_user')||''),target_department=String(fd.get('department')||'');
+    if(!target_user)throw new Error('Escolha uma conta para contratar.');
+    const {error}=await state.client.rpc('teurchat_hire_employee',{target_user,target_department});if(error)throw error;
+    notice('Contratação concluída. A insígnia e o grupo interno foram atualizados.','success');await renderAdminPage();
+  }
+  async function openGroupCreator(){
+    if(!authRequired())return;const out=$('#chatPeople');if(!out)return;
+    out.innerHTML='<div class="group-create-panel"><form id="groupCreateForm"><label>Nome do grupo<input name="group_title" minlength="2" maxlength="60" required placeholder="Ex.: Amigos do TeurChat"></label><p class="muted small">Escolha pessoas que você segue. O grupo pode ter até 30 participantes, contando você.</p><div id="groupFollowChoices"><div class="loading">Carregando pessoas que você segue…</div></div><button class="btn primary full" type="submit">Criar grupo</button></form></div>';
+    const {data:follows,error}=await state.client.from('follows').select('followed_id').eq('follower_id',state.session.user.id).limit(200);if(error)throw error;
+    const ids=(follows||[]).map(x=>x.followed_id).filter(Boolean),choices=$('#groupFollowChoices');if(!choices)return;
+    if(!ids.length){choices.innerHTML='<p class="muted small">Você ainda não segue ninguém. Siga algumas pessoas para criar um grupo.</p>';return;}
+    const {data:people,error:peopleError}=await state.client.from('profiles').select('id,username,display_name,avatar_url').in('id',ids);if(peopleError)throw peopleError;
+    choices.innerHTML=(people||[]).map(p=>'<label class="group-choice"><input type="checkbox" name="members" value="'+esc(p.id)+'"><span>'+avatar(p)+'<span><strong>'+esc(p.display_name||p.username)+'</strong><small>@'+esc(p.username)+'</small></span></span></label>').join('')||'<p class="muted small">Nenhuma pessoa disponível.</p>';
+  }
+  async function createGroupFromForm(form){
+    if(!authRequired())return;const fd=new FormData(form),title=String(fd.get('group_title')||'').trim(),users=Array.from(form.querySelectorAll('input[name="members"]:checked')).map(x=>x.value);
+    if(!users.length)throw new Error('Selecione pelo menos uma pessoa que você segue.');
+    const {data,error}=await state.client.rpc('teurchat_create_group',{group_title:title,target_users:users});if(error)throw error;
+    state.activeConversationId=data;notice('Grupo criado.','success');await loadChatList({reopenActive:false});await openConversation(data);
+  }
+  function fmtVideoTime(seconds){if(!Number.isFinite(seconds)||seconds<0)return '0:00';const m=Math.floor(seconds/60),s=Math.floor(seconds%60);return m+':'+String(s).padStart(2,'0');}
+  function syncVideoControls(video){
+    if(!video)return;const card=video.closest('[data-post]');if(!card)return;const play=card.querySelector('[data-action="toggle-video"]'),mute=card.querySelector('[data-action="toggle-mute"]'),seek=card.querySelector('[data-video-seek]'),time=card.querySelector('[data-video-time]');
+    if(play){play.textContent=video.paused?'▶ Reproduzir':'Ⅱ Pausar';play.setAttribute('aria-label',video.paused?'Reproduzir vídeo':'Pausar vídeo');}
+    if(mute){mute.textContent=video.muted?'♫ Som':'♫ Mudo';mute.setAttribute('aria-label',video.muted?'Ativar som':'Silenciar vídeo');}
+    if(seek&&Number.isFinite(video.duration)&&video.duration>0)seek.value=String(Math.round((video.currentTime/video.duration)*1000));
+    if(time)time.textContent=fmtVideoTime(video.currentTime)+' / '+fmtVideoTime(video.duration);
+  }
   async function renderAdminPage() {
     if (!state.isAdmin) throw new Error('Acesso restrito à administração.');
     $('#content').innerHTML = '<section class="admin-hero"><div><p class="eyebrow">CENTRO DE CONTROLE</p><h2>Administração do TeurChat</h2><p>Gestão de comunidade, moderação, suporte, relatórios e auditoria.</p></div><span class="admin-shield">' + svgIcon('shield-check') + '</span></section><section class="admin-stat-grid" id="adminStats"><div class="loading">Atualizando indicadores…</div></section><section class="panel admin-tools"><div class="section-heading"><div><p class="eyebrow">ATALHOS DE OPERAÇÃO</p><h3>Ferramentas administrativas</h3><p class="muted small">50 ações para revisar, filtrar, atualizar e exportar dados autorizados.</p></div></div><div id="adminQuickActions" class="admin-quick-grid"></div></section><section class="panel admin-tools"><div class="admin-toolbar"><input id="adminSearch" type="search" placeholder="Buscar por nome ou @usuário" aria-label="Buscar usuários"><button class="btn secondary" data-action="admin-refresh">' + svgIcon('refresh') + ' Atualizar</button></div><p class="muted small">Os nomes de usuário são exclusivos. Emblemas são identificadores visuais e não concedem permissões administrativas.</p><div id="adminUsers"><div class="loading"><span class="spinner"></span>Carregando usuários…</div></div></section><section class="panel admin-tools"><div class="section-heading"><div><p class="eyebrow">CENTRAL DE ATENDIMENTO</p><h3>Suporte e denúncias</h3></div><button class="btn secondary" data-action="admin-cases-refresh">Atualizar</button></div><div class="admin-filter-grid"><label>Estado<select id="adminCaseFilter"><option value="all">Todos</option><option value="open">Abertos</option><option value="in_progress">Em andamento</option><option value="waiting_user">Aguardando usuário</option><option value="resolved">Resolvidos</option><option value="closed">Encerrados</option></select></label><label>Categoria<select id="adminCaseCategory"><option value="all">Todas</option><option value="support">Suporte</option><option value="report">Denúncias</option><option value="bug">Bugs</option><option value="appeal">Recursos</option></select></label><label>Prioridade<select id="adminCasePriority"><option value="all">Todas</option><option value="urgent">Urgente</option><option value="high">Alta</option><option value="normal">Normal</option><option value="low">Baixa</option></select></label></div><div id="adminCases">Carregando chamados…</div></section><section class="panel admin-tools"><div class="section-heading"><div><p class="eyebrow">MODERAÇÃO</p><h3>Denúncias da comunidade</h3></div><button class="btn secondary" data-action="admin-reports-refresh">Atualizar</button></div><label>Estado da denúncia<select id="adminReportFilter"><option value="all">Todas</option><option value="pending">Pendentes</option><option value="reviewing">Em análise</option><option value="resolved">Resolvidas</option><option value="dismissed">Arquivadas</option></select></label><div id="adminReports">Carregando denúncias…</div></section><section class="panel admin-tools"><div class="section-heading"><h3>Auditoria administrativa</h3><button class="btn secondary" data-action="admin-audit-refresh">Atualizar</button></div><div id="adminAudit">Carregando registros…</div></section>'
+    if(isOfficialAccount())$('#content').insertAdjacentHTML('beforeend','<section class="panel admin-tools" id="staffManagement"><div class="loading">Carregando quadro de funcionários…</div></section>');
     const {data,error}=await state.client.rpc('admin_list_users');
     if(error) throw error;
     state.adminUsers=data||[];
     renderAdminUsers();
     await Promise.all([loadAdminCases(),loadAdminAudit(),loadAdminStats(),loadAdminReports()]);
     renderAdminQuickActions();
+    if(isOfficialAccount())await renderStaffManagement();
   }
 
   async function loadAdminStats(){
@@ -1007,6 +1050,10 @@
     if(action==='admin-case-save') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); const status=$('[data-case-status="'+CSS.escape(id)+'"]')?.value||'open'; const priority=$('[data-case-priority="'+CSS.escape(id)+'"]')?.value||'normal'; const resolution=$('[data-case-resolution="'+CSS.escape(id)+'"]')?.value||''; const {error}=await state.client.rpc('admin_update_case',{target_case:id,new_status:status,new_priority:priority,case_resolution:resolution,assign_to_self:true});if(error)throw error;notice('Chamado atualizado e decisão registrada.','success');await loadAdminCases();await loadAdminAudit();return; }
     if(action==='support-refresh') return loadMyCases();
     if(action==='chat-refresh') return loadChatList();
+    if(action==='create-group') return openGroupCreator();
+    if(action==='toggle-video') {const video=$('[data-post="'+CSS.escape(id)+'"] video.reel-media');if(!video)throw new Error('Vídeo não encontrado.');if(video.paused)await video.play();else video.pause();syncVideoControls(video);return;}
+    if(action==='toggle-mute') {const video=$('[data-post="'+CSS.escape(id)+'"] video.reel-media');if(!video)throw new Error('Vídeo não encontrado.');video.muted=!video.muted;syncVideoControls(video);return;}
+    if(action==='video-fullscreen') {const video=$('[data-post="'+CSS.escape(id)+'"] video.reel-media');if(!video)throw new Error('Vídeo não encontrado.');if(document.fullscreenElement)await document.exitFullscreen();else if(video.requestFullscreen)await video.requestFullscreen();else throw new Error('Tela cheia não é compatível neste navegador.');return;}
     if(action==='open-chat') return openConversation(id);
     if(action==='start-chat') return startChat(id,el.dataset.username||'usuario');
     if(action==='open-follow-list') return openFollowList(id,el.dataset.kind||'followers');
@@ -1014,6 +1061,7 @@
     if(action==='notifications-read-all') { const {error}=await state.client.from('notifications').update({read_at:new Date().toISOString()}).eq('recipient_id',state.session.user.id).is('read_at',null);if(error)throw error;return renderNotificationsPage(); }
     if(action==='admin-badge') return adminBadge(id,el.dataset.username);
     if(action==='admin-remove-badge') return adminRemoveBadge(id,el.dataset.username);
+    if(action==='staff-dismiss') {if(!isOfficialAccount())throw new Error('Somente @TeurChat pode desligar funcionários.');if(!confirm('Desligar @'+(el.dataset.username||'funcionário')+'? A insígnia Administrador e o acesso ao grupo interno serão removidos.'))return;const {error}=await state.client.rpc('teurchat_dismiss_employee',{target_user:id});if(error)throw error;notice('Funcionário desligado e removido do grupo interno.','success');await renderAdminPage();return;}
     if(action==='admin-delete-comment') { if(!state.isAdmin)throw new Error('Acesso restrito à administração.'); if(!confirm('Excluir este comentário?'))return; const {error}=await state.client.rpc('admin_delete_comment',{target_comment:id}); if(error)throw error; notice('Comentário removido.','success'); const postId=$('#commentForm')?.dataset.postId; if(postId) await loadComments(postId); await renderPage(); return; }
     if(action==='admin-ban') return adminBan(id,el.dataset.username,true);
     if(action==='admin-unban') return adminBan(id,el.dataset.username,false);
@@ -1083,11 +1131,14 @@
     if(form.id==='caseForm'){e.preventDefault();await submitCase(form);}
     if(form.id==='messageForm'){e.preventDefault();await sendMessage(form);}
     if(form.id==='chatSearchForm'){e.preventDefault();await searchChatPeople($('#chatSearch').value);}
+    if(form.id==='groupCreateForm'){e.preventDefault();await createGroupFromForm(form);}
+    if(form.id==='staffHireForm'){e.preventDefault();await hireStaffFromForm(form);}
     if(form.id==='searchForm'){e.preventDefault();state.search=$('#searchInput').value.trim();state.page='explore';go('explore');}
     if(form.id==='peopleSearchForm'){e.preventDefault();await searchProfiles($('#peopleSearch').value);}
   });
-  document.addEventListener('input',e=>{if(e.target?.closest('#messageForm textarea[name="body"]'))handleChatTyping();});
+  document.addEventListener('input',e=>{if(e.target?.closest('#messageForm textarea[name="body"]'))handleChatTyping();if(e.target?.matches('[data-video-seek]')){const video=$('[data-post="'+CSS.escape(e.target.dataset.videoSeek)+'"] video.reel-media');if(video&&Number.isFinite(video.duration))video.currentTime=video.duration*(Number(e.target.value)/1000);}});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+  ['play','pause','volumechange','timeupdate','loadedmetadata','durationchange'].forEach(type=>document.addEventListener(type,e=>{if(e.target instanceof HTMLVideoElement&&e.target.classList.contains('reel-media'))syncVideoControls(e.target);},true));
   document.addEventListener('change',e=>{if(e.target?.matches('#messageForm input[name="attachment"]')&&e.target.files?.[0]){const file=e.target.files[0];if(file.size>200*1024*1024){notice('O arquivo ultrapassa 200 MB.','error');e.target.value='';return;}const hint=$('.chat-media-hint');if(hint)hint.textContent='Anexo selecionado: '+file.name;}});
   async function init() {
     updateAccountUI();
