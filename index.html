@@ -793,6 +793,68 @@ html{scroll-snap-type:none;overscroll-behavior-y:auto}
 .staff-row span,.staff-row small{font-size:12px;color:var(--tc-muted,#a0a6b0);overflow-wrap:anywhere}
 @media(max-width:680px){.reel-player-controls{left:7px;right:60px;top:64px;bottom:auto;gap:5px;padding:7px}.video-control{min-height:29px;padding:5px 7px;font-size:10px}.video-time{font-size:9px}.staff-hire-form{grid-template-columns:1fr}.staff-row{align-items:flex-start}.staff-row .btn{padding:8px;font-size:11px;min-height:34px}.group-choice{padding:7px}}
 
+
+/* v67 — controles discretos no rodapé do vídeo e inbox mais legível */
+.reel-video-wrap{position:relative}
+.reel-player-controls{
+  top:auto!important;bottom:18px!important;left:50%!important;right:auto!important;
+  transform:translate(-50%,10px);width:max-content;max-width:calc(100% - 24px);
+  justify-content:center;gap:7px;padding:9px 11px;border-radius:14px;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .18s ease,transform .18s ease,visibility .18s ease;
+}
+.reel-card.reel-controls-visible .reel-player-controls{
+  opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0);
+}
+.reel-player-controls .video-control{min-height:35px;padding:7px 10px;border:1px solid #ffffff24;border-radius:9px;background:#1a1b20;color:#fff;font-size:12px;white-space:nowrap}
+.reel-player-controls .video-time{font-size:11px;white-space:nowrap;color:#f5f5f6}
+.reel-player-controls .video-seek{flex:1 1 100%;width:min(320px,100%);height:18px;accent-color:#fff}
+.reel-video-wrap{cursor:pointer}
+.chat-layout{grid-template-columns:minmax(245px,.78fr) minmax(0,1.45fr);gap:0}
+.chat-sidebar{padding:16px 13px}
+.chat-sidebar .section-heading{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.chat-sidebar .section-heading>div{flex:1 1 100%;margin-bottom:3px}
+.chat-sidebar .section-heading .btn{min-height:36px}
+.chat-list-label{margin:13px 7px 5px;font-size:9px;font-weight:850;letter-spacing:1.15px;color:#9b9da6}
+.chat-official-contact{margin-bottom:12px;padding-bottom:11px;border-bottom:1px solid var(--tc-border)}
+.chat-official-person{background:#191a1f!important;border:1px solid #363840!important;padding:12px 9px!important}
+.chat-official-person .chat-official-mark{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;background:#f5f5f6;color:#111;font-size:10px;vertical-align:middle}
+.chat-official-person small{color:#d3d4da!important}
+#chatList{display:flex;flex-direction:column;gap:4px}
+#chatList .chat-person{padding:11px 8px;min-height:62px}
+.chat-window{min-height:0}
+.chat-header{gap:12px;padding:14px 16px}
+.chat-header>div{gap:5px}
+.chat-header strong{overflow-wrap:anywhere}
+.chat-secure-label{font-size:10px;white-space:nowrap;color:#a9abb3;border:1px solid #34363d;border-radius:999px;padding:5px 8px}
+.chat-messages{gap:14px;padding:20px 18px}
+.chat-bubble{max-width:min(78%,520px);padding:12px 14px;line-height:1.5}
+.chat-bubble p{line-height:1.55}
+.chat-compose{align-items:center;gap:10px;padding:13px}
+.chat-compose textarea{min-height:44px;border-radius:12px}
+.chat-compose .btn{display:flex;align-items:center;justify-content:center;gap:7px;min-width:86px;border-radius:10px}
+@media(max-width:680px){
+ .reel-player-controls{bottom:14px!important;max-width:calc(100% - 18px);gap:5px;padding:7px 8px}
+ .reel-player-controls .video-control{font-size:11px;min-height:33px;padding:6px 8px}
+ .reel-player-controls .video-seek{width:100%}
+ .chat-layout{display:flex;flex-direction:column;height:auto;min-height:0}
+ .chat-sidebar{max-height:none;padding:13px 11px}
+ .chat-sidebar .section-heading{display:grid;grid-template-columns:1fr auto auto;gap:7px}
+ .chat-sidebar .section-heading>div{grid-column:1/-1}
+ .chat-sidebar .search-form{display:flex;gap:7px;margin:12px 0}
+ .chat-sidebar .search-form input{flex:1;min-width:0}
+ .chat-official-contact{margin-bottom:9px;padding-bottom:9px}
+ .chat-window{height:58dvh;min-height:350px}
+ .chat-header{padding:12px 10px;gap:8px}
+ .chat-header>div{min-width:0}
+ .chat-secure-label{display:none}
+ .chat-messages{padding:13px 10px;gap:12px}
+ .chat-bubble{max-width:88%;padding:10px 12px}
+ .chat-compose{display:flex;gap:6px;padding:8px}
+ .chat-compose textarea{min-width:0;min-height:42px;padding:10px!important}
+ .chat-compose .btn{min-width:72px;padding:8px 9px;font-size:12px}
+}
+
 </style>
 </head>
 <body>
@@ -836,8 +898,8 @@ html{scroll-snap-type:none;overscroll-behavior-y:auto}
 </nav>
 <div class="modal" id="modal" aria-hidden="true"><div class="modal-card" id="modalBody" role="dialog" aria-modal="true" aria-labelledby="authTitle"></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js?v=66"></script>
-<script src="/app.js?v=66"></script>
+<script src="/config.js?v=67"></script>
+<script src="/app.js?v=67"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("Cache offline indisponível:",err)));}</script>
 </body>
 </html>
