@@ -795,9 +795,9 @@
   }
   async function adminBadge(userId, username) {
     if(!state.isAdmin) throw new Error('Acesso restrito à administração.');
-    const choice=prompt('Emblemas oficiais:\\n1 Administrador\\n2 Caçador de Bugs\\n3 Verificado\\n4 Parceiro');
+    const choice=prompt('Insígnias disponíveis:\\n1 Caçador de Bugs\\n2 Verificado\\n3 Parceiro');
     if(choice===null)return;
-    const clean=({'1':'admin','2':'bug_hunter','3':'verified','4':'partner'})[choice.trim()];
+    const clean=({'1':'bug_hunter','2':'verified','3':'partner'})[choice.trim()];
     if(!clean)throw new Error('Escolha um emblema oficial.');
     const {error}=await state.client.rpc('admin_set_badge',{target_user:userId,target_badge:clean,should_grant:true});
     if(error)throw error;
@@ -806,9 +806,9 @@
   }
   async function adminRemoveBadge(userId, username) {
     if(!state.isAdmin)throw new Error('Acesso restrito à administração.');
-    const key=prompt('Emblemas oficiais:\\n1 Administrador\\n2 Caçador de Bugs\\n3 Verificado\\n4 Parceiro');
+    const key=prompt('Insígnias que podem ser removidas:\\n1 Caçador de Bugs\\n2 Verificado\\n3 Parceiro');
     if(key===null)return;
-    const clean=({'1':'admin','2':'bug_hunter','3':'verified','4':'partner'})[key.trim()];
+    const clean=({'1':'bug_hunter','2':'verified','3':'partner'})[key.trim()];
     if(!clean)throw new Error('Escolha um emblema oficial.');
     const {error}=await state.client.rpc('admin_set_badge',{target_user:userId,target_badge:clean,should_grant:false});
     if(error)throw error;
